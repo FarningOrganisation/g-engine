@@ -38,6 +38,7 @@ set:
 - Project configuration and PyInstaller-based desktop exports
 - The optional visual scene editor
 - Per-renderer shaders and multi-pass scene post-processing
+- Opt-in ambient, point, and spot lighting with polygonal hard shadows
 - Experimental networking, clearly marked as experimental
 
 ## Release blockers
@@ -219,8 +220,6 @@ escape hatches.
 
 These features are valuable but should not delay the first alpha release:
 
-- Native 2D lighting
-- Dynamic shadows and occluders
 - Sprite normal maps
 - Built-in bloom, blur, CRT, vignette, and pixelation effects
 - Shader and asset hot reloading
@@ -232,22 +231,19 @@ These features are valuable but should not delay the first alpha release:
 - Render-to-texture surfaces and multiple camera viewports
 - Localization and plugin discovery
 
-## 2D lighting plan
+## 2D lighting status
 
-The existing custom shader and post-processing APIs are sufficient for the
-first release. Native lighting should be developed as a separate rendering
-milestone:
-
-1. Add ambient light and a serializable `Light2D` point-light component.
-2. Render scene color and light accumulation into separate targets.
-3. Composite the targets without changing scenes that use no lights.
-4. Add light layers, masks, camera culling, and editor visualization.
-5. Add optional sprite normal maps.
-6. Add occluders and shadows as a separate feature.
-7. Measure fill-rate and add optional reduced-resolution light buffers.
-
-The lighting API should work in code, serialized scenes, the editor, and
-exports before it is considered supported.
+- [x] Add serializable `PointLight2D` and `SpotLight2D` components.
+- [x] Add serialized scene ambient light.
+- [x] Render scene color and light accumulation into separate targets.
+- [x] Preserve the direct rendering path for scenes with no enabled lights.
+- [x] Add explicit polygonal `ShadowOccluder2D` components and hard shadows.
+- [x] Cull lights outside the camera viewport.
+- [x] Support code, serialized scenes, editor fields, and runtime preview.
+- [ ] Add per-renderer light layers and masks.
+- [ ] Add optional sprite normal maps.
+- [ ] Measure fill rate and add optional reduced-resolution light buffers.
+- [ ] Add soft shadows only after hard-shadow behavior is stable.
 
 ## Release-candidate checklist
 

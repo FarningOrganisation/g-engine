@@ -65,6 +65,7 @@ nav:
       - Tile maps and navigation: guides/tilemaps.md
       - GUI: guides/gui.md
       - Animation and effects: guides/effects.md
+      - 2D lighting: guides/lighting.md
       - Shaders: guides/shaders.md
       - Persistence and exporting: guides/persistence.md
       - Experimental networking: guides/networking.md

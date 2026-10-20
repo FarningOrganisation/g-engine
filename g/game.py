@@ -460,6 +460,60 @@ class Game:
             screen_space=screen_space,
         )
 
+    def add_point_light(
+        self,
+        x: float,
+        y: float,
+        radius: float = 256,
+        *,
+        color: Color = (255, 255, 255, 255),
+        intensity: float = 1,
+        falloff: float = 1,
+        casts_shadows: bool = False,
+        layer: LayerSelector | None = None,
+    ) -> GameObject:
+        """Create an object containing an omnidirectional point light."""
+        return self.scenes.current.add_point_light(
+            x,
+            y,
+            radius,
+            color=color,
+            intensity=intensity,
+            falloff=falloff,
+            casts_shadows=casts_shadows,
+            layer=layer,
+        )
+
+    def add_spot_light(
+        self,
+        x: float,
+        y: float,
+        range: float = 256,
+        *,
+        angle: float = 50,
+        inner_angle: float | None = None,
+        color: Color = (255, 255, 255, 255),
+        intensity: float = 1,
+        falloff: float = 1,
+        casts_shadows: bool = False,
+        rotation: float = 0,
+        layer: LayerSelector | None = None,
+    ) -> GameObject:
+        """Create an object containing a directed spotlight."""
+        return self.scenes.current.add_spot_light(
+            x,
+            y,
+            range,
+            angle=angle,
+            inner_angle=inner_angle,
+            color=color,
+            intensity=intensity,
+            falloff=falloff,
+            casts_shadows=casts_shadows,
+            rotation=rotation,
+            layer=layer,
+        )
+
     def add_stateful_game_object(
         self,
         states: Mapping[str, GameObject],

@@ -56,8 +56,14 @@ transition overlays draw afterward.
 textures. Every enabled effect adds a full-screen pass. Disable effects or
 clear the scene's `post_process` when they are unnecessary.
 
-## Lighting scope
+## Native lighting interaction
 
-Custom shaders are supported; a native 2D lighting/shadow/normal-map system
-is not yet built in. A general post-process effect should not be mistaken for
-a complete lighting pipeline.
+Native [2D lighting](lighting.md) is a scene-level pipeline rather than a
+replacement for each renderer's shader. Renderer shaders still produce scene
+color; the engine then multiplies that captured world color by ambient, point,
+and spot-light accumulation. Hard shadows clip light geometry through explicit
+occluders.
+
+Post-processing wraps the lit world plus screen-space objects and GUI. A
+general post-process effect is therefore still separate from native lighting.
+Normal maps and soft shadows are not currently supported.

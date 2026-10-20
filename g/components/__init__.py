@@ -12,6 +12,7 @@ from .behaviour_runner import BehaviourRunner
 from .circle_renderer import CircleRenderer
 from .collider import Collider, ColliderMode
 from .line_renderer import LineRenderer
+from .lighting import Light2D, PointLight2D, ShadowOccluder2D, SpotLight2D
 from .network import NetworkClient, NetworkedGameObject
 from .particle_effect import ParticleEffect
 from .polygon_renderer import PolygonRenderer
@@ -39,20 +40,24 @@ __all__ = [
     "Component",
     "ComponentRequirement",
     "LineRenderer",
+    "Light2D",
     "NetworkClient",
     "NetworkedGameObject",
     "ParticleEffect",
     "PolygonRenderer",
+    "PointLight2D",
     "TileRenderer",
     "RectRenderer",
     "Renderer",
     "RepeatingImageRenderer",
     "Script",
     "ShapeStyle",
+    "ShadowOccluder2D",
     "SpriteAnimation",
     "SpriteAnimationFrame",
     "SpriteAnimator",
     "SpriteRenderer",
+    "SpotLight2D",
     "Spline",
     "StyledShapeRenderer",
     "TextRenderer",

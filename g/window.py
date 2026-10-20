@@ -508,3 +508,6 @@ class Window:
                         if self._surface is not None:
                             self._surface.delete()
                             self._surface = None
+                        renderer = getattr(self, "_renderer", None)
+                        if renderer is not None:
+                            renderer.delete()

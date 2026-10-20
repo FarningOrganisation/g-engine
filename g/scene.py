@@ -12,7 +12,15 @@ from copy import deepcopy
 import pyglet
 
 from .camera import Camera
-from .components import Area, ShapeStyle, SpriteAnimation
+from .components import (
+    Area,
+    Light2D,
+    PointLight2D,
+    ShadowOccluder2D,
+    ShapeStyle,
+    SpotLight2D,
+    SpriteAnimation,
+)
 from .grid import Grid
 from .navigation import NavigationAgent, NavigationWorld
 from .nodes import GameObject, Node
@@ -460,6 +468,7 @@ class Scene:
         self,
         *,
         bg_color: Color | None = None,
+        ambient_light: Color = (64, 64, 64, 255),
         grid_cell_size: int | None = None,
         presentation_enabled: bool = True,
     ) -> None:
@@ -467,10 +476,13 @@ class Scene:
 
         Args:
             bg_color (Color | None): Background color; defaults to the owning game's color.
+            ambient_light: RGB or RGBA color applied wherever native lights do
+                not contribute.
             grid_cell_size (int | None): Grid cell size in pixels; defaults to the game.
             presentation_enabled (bool): Whether graphics resources are created.
         """
         self.bg_color = bg_color
+        self.ambient_light = ambient_light
         self.grid_cell_size = grid_cell_size
         self.presentation_enabled = presentation_enabled
         self.post_process: PostProcess | PostProcessPipeline | None = None
@@ -481,6 +493,120 @@ class Scene:
         self._source_registry: SceneTypeRegistry | None = None
         self.time = SceneTime()
         self.layers = SceneLayers(self)
+
+    @property
+    def ambient_light(self) -> Color:
+        """Color applied to the world before native light contributions."""
+        return self._ambient_light
+
+    @ambient_light.setter
+    def ambient_light(self, value: Color) -> None:
+        """Set the ambient RGB or RGBA byte color.
+
+        Raises:
+            ValueError: The color is not three or four byte channels.
+        """
+        channels = tuple(value)
+        if len(channels) not in {3, 4} or any(
+            not isinstance(channel, int) or not 0 <= channel <= 255
+            for channel in channels
+        ):
+            raise ValueError(
+                "ambient_light must contain three or four byte channels"
+            )
+        self._ambient_light = channels  # type: ignore[assignment]
+
+    @property
+    def lights(self) -> tuple[Light2D, ...]:
+        """Enabled lights attached to enabled objects in visible layers."""
+        return tuple(
+            component
+            for node in self.walk()
+            if (
+                isinstance(node, GameObject)
+                and node.enabled_in_hierarchy
+                and node.layer is not None
+                and node.layer.visible
+            )
+            for component in node.components
+            if isinstance(component, Light2D) and component.enabled
+        )
+
+    @property
+    def shadow_occluders(self) -> tuple[ShadowOccluder2D, ...]:
+        """Enabled shadow occluders attached to enabled scene objects."""
+        return tuple(
+            component
+            for node in self.walk()
+            if (
+                isinstance(node, GameObject)
+                and node.enabled_in_hierarchy
+                and node.layer is not None
+                and node.layer.visible
+            )
+            for component in node.components
+            if isinstance(component, ShadowOccluder2D) and component.enabled
+        )
+
+    @property
+    def lighting_active(self) -> bool:
+        """Whether an enabled light currently opts the scene into lighting."""
+        return bool(self.lights)
+
+    def add_point_light(
+        self,
+        x: float,
+        y: float,
+        radius: float = 256,
+        *,
+        color: Color = (255, 255, 255, 255),
+        intensity: float = 1,
+        falloff: float = 1,
+        casts_shadows: bool = False,
+        layer: LayerSelector | None = None,
+    ) -> GameObject:
+        """Create an object containing a :class:`PointLight2D` component."""
+        game_object = GameObject(x, y)
+        game_object.add_component(
+            PointLight2D(
+                radius,
+                color=color,
+                intensity=intensity,
+                falloff=falloff,
+                casts_shadows=casts_shadows,
+            )
+        )
+        return self.add(game_object, layer=layer)
+
+    def add_spot_light(
+        self,
+        x: float,
+        y: float,
+        range: float = 256,
+        *,
+        angle: float = 50,
+        inner_angle: float | None = None,
+        color: Color = (255, 255, 255, 255),
+        intensity: float = 1,
+        falloff: float = 1,
+        casts_shadows: bool = False,
+        rotation: float = 0,
+        layer: LayerSelector | None = None,
+    ) -> GameObject:
+        """Create an object containing a directed :class:`SpotLight2D`."""
+        game_object = GameObject(x, y, rotation=rotation)
+        game_object.add_component(
+            SpotLight2D(
+                range,
+                angle=angle,
+                inner_angle=inner_angle,
+                color=color,
+                intensity=intensity,
+                falloff=falloff,
+                casts_shadows=casts_shadows,
+            )
+        )
+        return self.add(game_object, layer=layer)
 
     @property
     def game(self) -> Game:

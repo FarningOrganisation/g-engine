@@ -180,6 +180,7 @@ class PostProcessTests(unittest.TestCase):
         effect.draw = Mock()
         scene = SimpleNamespace(
             post_process=effect,
+            lighting_active=False,
             camera=SimpleNamespace(view_matrix="camera"),
             _draw_background=Mock(),
             _draw=Mock(),
@@ -213,6 +214,7 @@ class PostProcessTests(unittest.TestCase):
     ) -> None:
         scene = SimpleNamespace(
             post_process=None,
+            lighting_active=False,
             camera=SimpleNamespace(view_matrix="camera"),
             _draw_background=Mock(),
             _draw=Mock(),

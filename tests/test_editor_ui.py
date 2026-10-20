@@ -1553,6 +1553,14 @@ class EditorStateTests(unittest.TestCase):
             [12, 34, 56, 200],
         )
 
+    def test_scene_ambient_light_requires_rgba_color(self) -> None:
+        self.state.set_scene_ambient_light([12, 34, 56, 200])
+
+        self.assertEqual(
+            self.state.document.settings["ambient_light"],
+            [12, 34, 56, 200],
+        )
+
     def test_scene_resolution_requires_positive_integers(self) -> None:
         self.assertEqual(
             self.state.document.settings["size"],

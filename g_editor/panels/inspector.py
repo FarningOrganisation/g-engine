@@ -766,6 +766,19 @@ class InspectorPanel(EditorPanel):
         )
         if changed:
             self.state.set_scene_background(color)
+        ambient = self.state.document.settings.get(
+            "ambient_light",
+            [64, 64, 64, 255],
+        )
+        changed, color = self._color_widget(
+            "Ambient Light",
+            ambient,
+        )
+        if changed:
+            self.state.set_scene_ambient_light(color)
+        imgui.text_disabled(
+            "Applied when an enabled 2D light activates native lighting."
+        )
 
         imgui.separator_text("Starting Camera")
         imgui.text_disabled(

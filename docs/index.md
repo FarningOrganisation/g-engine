@@ -23,6 +23,7 @@ game.run(title="My Game")
 
 - Scenes, objects, components, reusable scripts, and simulation-time timers
 - Sprites, shapes, text, project fonts, cameras, particles, and trails
+- Opt-in point lights, spotlights, ambient light, and hard 2D shadows
 - Physics, collisions, spatial queries, tile maps, and grid navigation
 - GUI widgets, layouts, themes, focus, and view transitions
 - Behaviours, property animation, custom shaders, and post-processing
@@ -32,8 +33,8 @@ game.run(title="My Game")
 !!! warning "Alpha software"
     APIs and serialized formats are still evolving. Pin a commit or release
     when starting a project and keep authored assets under version control.
-    Native 2D lights, dynamic shadows, and normal maps are not currently a
-    built-in lighting system.
+    Native lighting currently supports point lights, spotlights, and hard
+    polygonal shadows. Soft shadows and normal maps are not yet supported.
 
 These guides describe implemented workflows. Internal design documents may
 also discuss future work; they are not a promise that a feature is available.

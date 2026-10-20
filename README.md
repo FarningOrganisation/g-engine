@@ -12,6 +12,7 @@ the optional visual editor.
 ## Highlights
 
 - Sprites, shapes, text, animation, particles, trails, and custom shaders
+- Opt-in point lights, spotlights, ambient light, and hard 2D shadows
 - Hierarchical game objects with components and reusable scripts
 - Pymunk physics, collisions, areas, raycasts, and overlap queries
 - Scenes, layers, cameras, timers, transitions, and persistence
@@ -112,8 +113,9 @@ The complete documentation is at
 - [Guides](https://farningorganisation.github.io/g-engine/guides/scenes/)
 - [Public API reference](https://farningorganisation.github.io/g-engine/api/)
 
-The guides cover objects and scripts, input, resources, scenes, physics, tile
-maps, GUI, animation, shaders, persistence, exporting, and networking.
+The guides cover objects and scripts, input, resources, scenes, physics, 2D
+lighting, tile maps, GUI, animation, shaders, persistence, exporting, and
+networking.
 
 Build the documentation locally with:
 

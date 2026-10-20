@@ -95,6 +95,7 @@ Use **Add Component** to add compatible:
 - Physics bodies
 - Top-down and platformer motors
 - Sprite animators
+- Point lights, spotlights, and shadow occluders
 - Navigation and networking components
 - Registered project scripts
 
@@ -105,6 +106,11 @@ another component still depends on the selected component.
 Collider fields select box, circle, ellipse, or polygon geometry. Interaction
 mode selects **Solid**, **Sensor**, or **Query Only** behavior. Use the viewport
 collider tool for direct geometry editing.
+
+Select the scene itself to edit its ambient-light color. Adding an enabled
+**Point Light 2D** or **Spot Light 2D** automatically activates native lighting
+in the viewport. **Shadow Occluder 2D** is explicit and independent from
+physics colliders. See [2D lighting and hard shadows](lighting.md).
 
 ## Assets
 

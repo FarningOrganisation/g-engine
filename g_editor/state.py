@@ -273,6 +273,7 @@ def new_scene_document() -> SceneDocument:
     return SceneDocument(
         settings={
             "background": [30, 30, 36, 255],
+            "ambient_light": [64, 64, 64, 255],
             "grid_cell_size": 32,
             "grid_snap": True,
             "camera": {
@@ -4537,6 +4538,24 @@ class EditorState:
             )
         self.document.settings["background"] = color
         self.mark_changed("Changed scene background")
+
+    def set_scene_ambient_light(self, color: JsonValue) -> None:
+        """Set the ambient color used when native scene lighting is active."""
+        if (
+            not isinstance(color, list)
+            or len(color) != 4
+            or not all(
+                isinstance(channel, int)
+                and not isinstance(channel, bool)
+                and 0 <= channel <= 255
+                for channel in color
+            )
+        ):
+            raise ValueError(
+                "scene ambient light must contain four color channels"
+            )
+        self.document.settings["ambient_light"] = color
+        self.mark_changed("Changed scene ambient light")
 
     def set_scene_camera_value(
         self,

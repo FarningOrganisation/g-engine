@@ -13,6 +13,7 @@ from .math import Vec2
 from .nodes import Node
 from .scene import ObjectLayer, Scene
 from .shader import PostProcess, PostProcessPipeline
+from .lighting import LightingPipeline
 
 
 @dataclass(frozen=True)
@@ -154,6 +155,10 @@ class RenderWindow(Protocol):
 class SceneRenderer:
     """Draws the active scene, UI, post-processing, and transition overlay."""
 
+    def __init__(self) -> None:
+        """Create a renderer whose lighting resources remain lazy."""
+        self._lighting: LightingPipeline | None = None
+
     def render(self, game: Game, window: RenderWindow) -> None:
         """Render one frame and restore the window view and viewport afterward.
 
@@ -168,7 +173,10 @@ class SceneRenderer:
             effect = scene.post_process
             if not isinstance(effect, (PostProcess, PostProcessPipeline)):
                 effect = None
-            if effect is not None and effect.enabled:
+            lighting_active = getattr(scene, "lighting_active", False) is True
+            if lighting_active and self._lighting is None:
+                self._lighting = LightingPipeline()
+            if (effect is not None and effect.enabled) or lighting_active:
                 viewport = (pyglet.gl.GLint * 4)()
                 pyglet.gl.glGetIntegerv(
                     pyglet.gl.GL_VIEWPORT,
@@ -177,12 +185,35 @@ class SceneRenderer:
                 previous_viewport = tuple(viewport)
                 framebuffer_size = window.get_framebuffer_size()
                 width, height = framebuffer_size
+            if effect is not None and effect.enabled:
+                if framebuffer_size is None:
+                    raise RuntimeError(
+                        "post-process framebuffer size is unavailable"
+                    )
+                width, height = framebuffer_size
                 effect.begin(width, height)
             try:
-                window.view = previous_view
-                scene._draw_background()
-                window.view = scene.camera.view_matrix
-                scene._draw()
+                if lighting_active:
+                    if framebuffer_size is None or self._lighting is None:
+                        raise RuntimeError(
+                            "lighting framebuffer size is unavailable"
+                        )
+                    width, height = framebuffer_size
+                    self._lighting.begin_world(width, height)
+                    try:
+                        window.view = previous_view
+                        scene._draw_background()
+                        window.view = scene.camera.view_matrix
+                        scene._draw()
+                    finally:
+                        self._lighting.end_world()
+                    window.view = previous_view
+                    self._lighting.draw(scene, width, height)
+                else:
+                    window.view = previous_view
+                    scene._draw_background()
+                    window.view = scene.camera.view_matrix
+                    scene._draw()
                 window.view = previous_view
                 scene._draw_ui()
             finally:
@@ -201,3 +232,9 @@ class SceneRenderer:
             window.view = previous_view
             if previous_viewport is not None:
                 pyglet.gl.glViewport(*previous_viewport)
+
+    def delete(self) -> None:
+        """Release lazily allocated lighting resources."""
+        if self._lighting is not None:
+            self._lighting.delete()
+            self._lighting = None

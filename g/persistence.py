@@ -24,6 +24,7 @@ from .components import (
     CircleRenderer,
     Component,
     LineRenderer,
+    PointLight2D,
     NetworkClient,
     NetworkedGameObject,
     ParticleEffect,
@@ -34,10 +35,12 @@ from .components import (
     RepeatingImageRenderer,
     Script,
     ShapeStyle,
+    ShadowOccluder2D,
     SpriteAnimation,
     SpriteAnimationFrame,
     SpriteAnimator,
     SpriteRenderer,
+    SpotLight2D,
     Spline,
     TextRenderer,
     TrailRenderer,
@@ -1179,6 +1182,85 @@ def _register_builtins(registry: SceneTypeRegistry) -> None:
         dump=lambda value, context: {"collider_index": value.collider_index, "enabled": value.enabled},
         restore=lambda value, p, context: None,
     )
+    def light_common(
+        value: PointLight2D | SpotLight2D,
+    ) -> dict[str, JsonValue]:
+        return {
+            "color": list(value.color),
+            "intensity": value.intensity,
+            "falloff": value.falloff,
+            "casts_shadows": value.casts_shadows,
+            "shadow_mask": value.shadow_mask,
+            "enabled": value.enabled,
+        }
+
+    registry.register_component(
+        "g.point_light_2d",
+        PointLight2D,
+        category="Lighting",
+        display_name="Point Light 2D",
+        builtin=True,
+        create=lambda context, p: PointLight2D(
+            _number(p, "radius", 256),
+            color=cast(Color, _color(p.get("color", [255, 255, 255, 255]), "light color")),
+            intensity=_number(p, "intensity", 1),
+            falloff=_number(p, "falloff", 1),
+            casts_shadows=bool(p.get("casts_shadows", False)),
+            shadow_mask=_integer(p, "shadow_mask", 0xFFFFFFFF),
+            enabled=bool(p.get("enabled", True)),
+        ),
+        dump=lambda value, context: {
+            "radius": value.radius,
+            **light_common(value),
+        },
+    )
+    registry.register_component(
+        "g.spot_light_2d",
+        SpotLight2D,
+        category="Lighting",
+        display_name="Spot Light 2D",
+        builtin=True,
+        create=lambda context, p: SpotLight2D(
+            _number(p, "range", 256),
+            angle=_number(p, "angle", 50),
+            inner_angle=_number(p, "inner_angle", 40),
+            color=cast(Color, _color(p.get("color", [255, 255, 255, 255]), "light color")),
+            intensity=_number(p, "intensity", 1),
+            falloff=_number(p, "falloff", 1),
+            casts_shadows=bool(p.get("casts_shadows", False)),
+            shadow_mask=_integer(p, "shadow_mask", 0xFFFFFFFF),
+            enabled=bool(p.get("enabled", True)),
+        ),
+        dump=lambda value, context: {
+            "range": value.range,
+            "angle": value.angle,
+            "inner_angle": value.inner_angle,
+            **light_common(value),
+        },
+    )
+    registry.register_component(
+        "g.shadow_occluder_2d",
+        ShadowOccluder2D,
+        category="Lighting",
+        display_name="Shadow Occluder 2D",
+        builtin=True,
+        create=lambda context, p: ShadowOccluder2D(
+            cast(
+                list[list[float]],
+                p.get(
+                    "points",
+                    [list(point) for point in ShadowOccluder2D().points],
+                ),
+            ),
+            occlusion_mask=_integer(p, "occlusion_mask", 0xFFFFFFFF),
+            enabled=bool(p.get("enabled", True)),
+        ),
+        dump=lambda value, context: {
+            "points": [list(point) for point in value.points],
+            "occlusion_mask": value.occlusion_mask,
+            "enabled": value.enabled,
+        },
+    )
 
     def restore_visual(
         value: Renderer,
@@ -1934,6 +2016,7 @@ class SceneSerializer:
                 node.scene_id = str(uuid4())
         settings: dict[str, JsonValue] = {
             "background": context.encode(scene.bg_color),
+            "ambient_light": context.encode(scene.ambient_light),
             "size": [scene.width, scene.height],
             "grid_cell_size": scene.grid.cell_size,
             "camera": {
@@ -2102,6 +2185,13 @@ class SceneSerializer:
                 SceneDocument.from_dict(original)
         scene = Scene(
             bg_color=_color(document.settings.get("background"), "background", optional=True),
+            ambient_light=cast(
+                Color,
+                _color(
+                    document.settings.get("ambient_light", [64, 64, 64, 255]),
+                    "ambient light",
+                ),
+            ),
             grid_cell_size=_integer(document.settings, "grid_cell_size", 32),
             presentation_enabled=game.presentation_enabled,
         )
