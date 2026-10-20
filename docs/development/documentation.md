@@ -61,5 +61,6 @@ Pull requests build the site but do not deploy it. Successful builds on `main`
 publish through GitHub's Pages artifact/deployment actions.
 The deployment job records the resulting site URL.
 
-Set `site_url` in `mkdocs.yml` once the final repository or custom-domain URL
-is known. No placeholder GitHub owner is baked into the configuration.
+The published site is <https://farningorganisation.github.io/g-engine/>.
+Its canonical URL and repository links are configured in `mkdocs.yml`.
+Update `site_url` if the project later moves to a custom domain.

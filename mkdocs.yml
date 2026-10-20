@@ -1,4 +1,7 @@
 site_name: g
+site_url: https://farningorganisation.github.io/g-engine/
+repo_url: https://github.com/FarningOrganisation/g-engine
+repo_name: FarningOrganisation/g-engine
 site_description: A beginner-friendly, component-based Python 2D game engine
 strict: true
 
