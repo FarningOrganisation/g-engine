@@ -225,8 +225,12 @@ class ParticleEffect(Renderer):
             return
         self.player.update(delta_time, self._emitter_transform())
 
-    def bind_batch(self, batch: Batch, group: Group) -> None:
-        """Allocate particle vertex buffers and add them to a pyglet batch."""
+    def bind_batch(
+        self,
+        batch: Batch | None,
+        group: Group | None,
+    ) -> None:
+        """Allocate particle buffers in a batch or release them when detached."""
         if not self._presentation_enabled:
             return
         self._placeholder.batch = batch
@@ -236,6 +240,8 @@ class ParticleEffect(Renderer):
         self._delete_vertex_lists()
         self._batch = batch
         self._group = group
+        if batch is None:
+            return
         program = pyglet.sprite.get_default_shader()
         for order, emitter in enumerate(self.definition.emitters):
             texture = self._texture_for(emitter.name)

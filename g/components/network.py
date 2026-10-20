@@ -115,6 +115,12 @@ class NetworkedGameObject(Component):
         if session is not None:
             session.unregister(self)
 
+    def on_scene_detach(self) -> None:
+        """Unregister while the owner leaves its scene for possible reuse."""
+        session = self._session
+        if session is not None:
+            session.unregister(self)
+
 
 class NetworkClient(Component):
     """Configure connection to a WebSocket network server.

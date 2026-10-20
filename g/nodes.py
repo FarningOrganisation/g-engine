@@ -481,6 +481,7 @@ class GameObject(Node):
         self._scene: Scene | None = None
         self._layer: ObjectLayer | None = None
         self._deleting = False
+        self._deleted = False
         self.scene_id: str | None = None
         self.name: str | None = None
         self.properties: dict[str, Any] = {}
@@ -579,6 +580,8 @@ class GameObject(Node):
         Raises:
             ValueError: If ownership or component requirements are invalid.
         """
+        if self.is_deleted:
+            raise RuntimeError("cannot add a component to a deleted game object")
         added: list[Component] = []
         try:
             self._add_component_with_requirements(
@@ -822,6 +825,10 @@ class GameObject(Node):
 
     def add_child(self, child: Node) -> Node:
         """Add a child and prepare its subtree if this object is in a scene."""
+        if self.is_deleted:
+            raise RuntimeError("cannot add a child to a deleted game object")
+        if isinstance(child, GameObject) and child.is_deleted:
+            raise RuntimeError("cannot add a deleted game object as a child")
         if (
             isinstance(child, GameObject)
             and self.layer is not None
@@ -834,6 +841,41 @@ class GameObject(Node):
             self._scene._prepare_subtree(child, self.layer)
             self._scene.physics.refresh()
         return result
+
+    def remove_child(self, child: Node) -> Node:
+        """Remove a direct child while keeping scene objects alive.
+
+        A child in a scene becomes a top-level object in the same layer.
+        Outside a scene, the child is detached from the hierarchy.
+
+        Raises:
+            ValueError: If ``child`` is not a direct child.
+        """
+        if child.parent is not self:
+            raise ValueError("node is not a child of this parent")
+        scene = self.scene
+        layer = self.layer
+        if scene is None or layer is None:
+            return super().remove_child(child)
+        world_position = child.world_position
+        world_rotation = child.world_rotation
+        world_scale = child.world_scale
+        layer.root.add_child(child)
+        child.world_position = world_position
+        child.world_rotation = world_rotation
+        parent_scale_x, parent_scale_y = layer.root.world_scale
+        if parent_scale_x == 0 or parent_scale_y == 0:
+            raise ValueError(
+                "cannot promote a child through a layer root with zero scale"
+            )
+        child.scale = (
+            world_scale[0] / parent_scale_x,
+            world_scale[1] / parent_scale_y,
+        )
+        scene._prepare_subtree(child, layer)
+        scene.physics.refresh()
+        scene.physics.refresh_contacts()
+        return child
 
     def get_component(
         self,
@@ -1231,11 +1273,11 @@ class GameObject(Node):
                     getattr(script, event)(contact)
 
     def delete(self) -> None:
-        """Remove this object and its descendants, releasing owned resources."""
-        if self._deleting:
+        """Permanently delete this subtree and release owned resources."""
+        if self._deleting or self._deleted:
             return
         if self._scene is not None:
-            self._scene.remove(self)
+            self._scene.delete(self)
             return
         nodes = self.walk()
         self.parent = None
@@ -1253,9 +1295,10 @@ class GameObject(Node):
     def _delete_resources(self) -> None:
         from .components import BehaviourRunner
 
-        if self._deleting:
+        if self._deleting or self._deleted:
             return
         self._deleting = True
+        self._deleted = True
         errors: list[Exception] = []
         runner = self.get_component(BehaviourRunner)
         if runner is not None:
@@ -1297,6 +1340,11 @@ class GameObject(Node):
             raise ExceptionGroup("GameObject cleanup failed", errors)
 
     @property
+    def is_deleted(self) -> bool:
+        """Whether this object has been permanently deleted."""
+        return self._deleted
+
+    @property
     def behaviour(self) -> Behaviour | None:
         """Current behaviour assigned to the attached behaviour runner."""
         from .components import BehaviourRunner
@@ -1317,6 +1365,14 @@ class GameObject(Node):
     def animate(self) -> AnimationBuilder:
         """Create a fluent animation builder targeting this game object."""
         return AnimationBuilder(self)
+
+    @property
+    def is_animating(self) -> bool:
+        """Whether an object animation is active, including while paused."""
+        from .components import BehaviourRunner
+
+        runner = self.get_component(BehaviourRunner)
+        return runner is not None and runner.is_animating
 
     def cancel_behaviour(self) -> None:
         """Cancel the object's active behaviour, if any."""

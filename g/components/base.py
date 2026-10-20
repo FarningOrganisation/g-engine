@@ -120,8 +120,16 @@ class Component:
         """Run when this component is detached from its game object."""
         pass
 
+    def on_scene_detach(self) -> None:
+        """Run before the owning object is non-destructively detached.
+
+        The owner still has access to its current scene while this hook runs.
+        Reattaching the object makes the component ready again.
+        """
+        pass
+
     def on_ready(self) -> None:
-        """Run once the owning object is ready in a scene."""
+        """Run when the owning object becomes ready in a scene."""
         pass
 
     def update(self, delta_time: float) -> None:

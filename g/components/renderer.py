@@ -87,8 +87,12 @@ class Renderer(Component, ABC):
         """All drawables managed by this renderer."""
         return (self.drawable,)
 
-    def bind_batch(self, batch: pyglet.graphics.Batch, group: pyglet.graphics.Group) -> None:
-        """Assign a pyglet batch and group to every drawable."""
+    def bind_batch(
+        self,
+        batch: pyglet.graphics.Batch | None,
+        group: pyglet.graphics.Group | None,
+    ) -> None:
+        """Assign or clear the pyglet batch and group for every drawable."""
         for drawable in self.drawables:
             drawable.batch = batch
             drawable.group = group

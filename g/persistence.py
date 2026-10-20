@@ -1655,6 +1655,7 @@ def _register_builtins(registry: SceneTypeRegistry) -> None:
             cast(Color, _color(p.get("color", [255, 255, 255]), "color")),
             visible=bool(p.get("visible", True)),
             screen_space=bool(p.get("screen_space", False)),
+            alignment=str(p.get("alignment", "center")),
         ),
         dump=lambda value, context: {
             "text": value.text,
@@ -1666,6 +1667,7 @@ def _register_builtins(registry: SceneTypeRegistry) -> None:
             "font_size": value.font_size,
             "color": value.color,
             "opacity": value.opacity,
+            "alignment": value.alignment,
             **_renderer_common(value),
         },
         restore=restore_visual,

@@ -71,8 +71,10 @@ Public annotated fields are authored/serialized fields. Names beginning with
 `_` are runtime details unless explicitly registered. Inspector bounds guide
 editor edits; they do not enforce every Python assignment.
 
-Use lifecycle hooks such as `on_ready` for scene-dependent setup, and
-`on_detach` to release subscriptions or other external resources.
+Use lifecycle hooks such as `on_ready` for scene-dependent setup,
+`on_scene_detach` when a reusable object leaves a scene, and `on_detach` when
+the component is removed or its object is permanently deleted. Reattaching a
+detached object runs `on_ready` again.
 See the generated reference for exact hook ordering and component requirements.
 
 ## Arbitrary scripting data
@@ -89,5 +91,46 @@ configuration.
 
 ## Deletion
 
-Call `obj.delete()` to remove an object safely during updates or collision
-callbacks. Shared asset resources are not deleted with individual objects.
+`delete()` permanently removes an object subtree and releases its owned
+resources:
+
+```python
+message.delete()
+
+if message.is_deleted:
+    print("The message cannot be reused")
+```
+
+Deletion is terminal and idempotent. Deleted objects cannot receive new
+components or children and cannot be added to a scene again. Deleting a parent
+also deletes its descendants. It is safe to call `delete()` during updates or
+collision callbacks. Shared asset resources are not deleted with individual
+objects.
+
+Use `remove_child()` only to remove a parent-child relationship:
+
+```python
+player.remove_child(weapon)
+```
+
+If both objects belong to a scene, `weapon` becomes a top-level object in the
+same layer without moving, rotating, or changing its visible scale. It remains
+alive, rendered, updated, and physical. Outside a scene, it becomes an
+unattached object with `parent is None`.
+
+Use `detach()` to remove a live subtree from a scene without destroying it:
+
+```python
+saved_enemy = game.detach(enemy)
+
+assert saved_enemy.scene is None
+assert not saved_enemy.is_deleted
+
+other_scene.add(saved_enemy)
+```
+
+Detach preserves components, renderer resources, children, properties, and
+callbacks while removing render-batch, physics, navigation, and scene
+membership. `Game.detach()`, `Scene.detach()`, and `ObjectLayer.detach()` return
+the detached object. Existing `remove()` methods remain compatibility aliases
+for permanent deletion; prefer `delete()` when writing new code.

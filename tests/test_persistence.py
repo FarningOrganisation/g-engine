@@ -669,7 +669,13 @@ class PersistenceTests(unittest.TestCase):
                 font_file,
             )
             font = self.game.resources.load_font(font_file)
-            scene.add(create_text("World", 10, 20, font=font))
+            scene.add(create_text(
+                "World",
+                10,
+                20,
+                font=font,
+                alignment="right",
+            ))
             assert isinstance(scene.gui.default.root, CanvasLayout)
             scene.gui.default.root.add_at(
                 Label("HUD", font=font),
@@ -693,6 +699,9 @@ class PersistenceTests(unittest.TestCase):
         text_font = restored.objects[0].require_component(
             TextRenderer
         ).font
+        text_alignment = restored.objects[0].require_component(
+            TextRenderer
+        ).alignment
         assert isinstance(restored.gui.default.root, CanvasLayout)
         label = restored.gui.default.root.children[0]
         button = restored.gui.default.root.children[1]
@@ -711,8 +720,53 @@ class PersistenceTests(unittest.TestCase):
             relative_font.as_posix(),
         )
         self.assertEqual(text_font, font)
+        self.assertEqual(text_alignment, "right")
         self.assertEqual(label.font, font)
         self.assertEqual(button.style.font, font)
+
+    def test_text_alignment_round_trips_and_defaults_for_older_scenes(
+        self,
+    ) -> None:
+        scene = self.game.scenes.current
+        scene.add(create_text(
+            "Score",
+            10,
+            20,
+            alignment="right",
+        ))
+        serializer = SceneSerializer(self.registry)
+        document = serializer.capture(scene, asset_root=".")
+
+        restored = serializer.restore(
+            self.game,
+            document,
+            asset_root=".",
+        )
+
+        self.assertEqual(
+            restored.objects[0].require_component(TextRenderer).alignment,
+            "right",
+        )
+        components = document.objects[0]["components"]
+        assert isinstance(components, list)
+        component = components[0]
+        assert isinstance(component, dict)
+        properties = component["properties"]
+        assert isinstance(properties, dict)
+        properties.pop("alignment")
+
+        restored_legacy = serializer.restore(
+            self.game,
+            document,
+            asset_root=".",
+        )
+
+        self.assertEqual(
+            restored_legacy.objects[0]
+            .require_component(TextRenderer)
+            .alignment,
+            "center",
+        )
 
     def test_round_trip_preserves_editor_style_sprite_record(self) -> None:
         with TemporaryDirectory() as directory:

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from enum import Enum
 from os import PathLike
 from pathlib import Path
 from struct import unpack
-from typing import TypeAlias, overload
+from types import MappingProxyType
+from typing import Literal, TypeAlias, overload
 
 import pyglet
 from fontTools.ttLib import TTFont
@@ -18,6 +20,7 @@ from pyglet.media import Source as PygletSource
 
 
 Color: TypeAlias = tuple[int, int, int] | tuple[int, int, int, int]
+ResourceKind: TypeAlias = Literal["image", "animation", "sound", "font"]
 
 
 class TextureFilter(str, Enum):
@@ -312,6 +315,122 @@ class Animation:
         return animation
 
 
+@dataclass(frozen=True)
+class _ResourceRequest:
+    kind: ResourceKind
+    name: str
+    filename: str | PathLike[str]
+
+
+class ResourceBundle:
+    """A named collection of assets loaded incrementally by a game.
+
+    Use :meth:`ResourceManager.bundle` to create a bundle and
+    :meth:`Game.load_assets` to load it without blocking drawing.
+    """
+
+    def __init__(
+        self,
+        manager: ResourceManager,
+        requests: Sequence[_ResourceRequest],
+    ) -> None:
+        """Create a pending bundle for one resource manager."""
+        self._manager = manager
+        self._requests = tuple(requests)
+        self._loaded_count = 0
+        self._error: Exception | None = None
+        self._images: dict[str, Image] = {}
+        self._animations: dict[str, Animation] = {}
+        self._sounds: dict[str, Sound] = {}
+        self._fonts: dict[str, Font] = {}
+
+    @property
+    def images(self) -> Mapping[str, Image]:
+        """Loaded images keyed by their declared names."""
+        return MappingProxyType(self._images)
+
+    @property
+    def animations(self) -> Mapping[str, Animation]:
+        """Loaded image animations keyed by their declared names."""
+        return MappingProxyType(self._animations)
+
+    @property
+    def sounds(self) -> Mapping[str, Sound]:
+        """Loaded sounds keyed by their declared names."""
+        return MappingProxyType(self._sounds)
+
+    @property
+    def fonts(self) -> Mapping[str, Font]:
+        """Loaded fonts keyed by their declared names."""
+        return MappingProxyType(self._fonts)
+
+    @property
+    def loaded_count(self) -> int:
+        """Number of assets loaded successfully."""
+        return self._loaded_count
+
+    @property
+    def total_count(self) -> int:
+        """Total number of assets declared in this bundle."""
+        return len(self._requests)
+
+    @property
+    def progress(self) -> float:
+        """Loading progress from ``0.0`` through ``1.0``."""
+        if not self._requests:
+            return 1.0
+        return self._loaded_count / len(self._requests)
+
+    @property
+    def loaded(self) -> bool:
+        """Whether every declared asset loaded successfully."""
+        return self._loaded_count == len(self._requests)
+
+    @property
+    def failed(self) -> bool:
+        """Whether loading stopped because an asset raised an error."""
+        return self._error is not None
+
+    @property
+    def error(self) -> Exception | None:
+        """Error raised by the most recent failed asset load."""
+        return self._error
+
+    @property
+    def current_name(self) -> str | None:
+        """Name of the next asset, or ``None`` when loading is complete."""
+        if self.loaded:
+            return None
+        return self._requests[self._loaded_count].name
+
+    def _load_next(self) -> None:
+        if self.loaded:
+            return
+        request = self._requests[self._loaded_count]
+        try:
+            if request.kind == "image":
+                self._images[request.name] = self._manager.load_image(
+                    request.filename
+                )
+            elif request.kind == "animation":
+                self._animations[request.name] = (
+                    self._manager.load_animation(request.filename)
+                )
+            elif request.kind == "sound":
+                self._sounds[request.name] = self._manager.load_sound(
+                    request.filename
+                )
+            else:
+                self._fonts[request.name] = self._manager.load_font(
+                    request.filename
+                )
+        except Exception as error:
+            self._error = error
+            raise
+        self._error = None
+        self._loaded_count += 1
+
+
 class ResourceManager:
     """Resolve and cache resource assets under a configurable asset root."""
     def __init__(
@@ -349,6 +468,49 @@ class ResourceManager:
 
     def _resource_path(self, filename: str | PathLike[str]) -> Path:
         return (self.asset_root / Path(filename).expanduser()).resolve()
+
+    def bundle(
+        self,
+        *,
+        images: Mapping[str, str | PathLike[str]] | None = None,
+        animations: Mapping[str, str | PathLike[str]] | None = None,
+        sounds: Mapping[str, str | PathLike[str]] | None = None,
+        fonts: Mapping[str, str | PathLike[str]] | None = None,
+    ) -> ResourceBundle:
+        """Declare named assets for automatic incremental loading.
+
+        Asset names must be non-empty and unique across all categories.
+        Paths use the same asset root as the individual loading methods.
+        """
+        requests: list[_ResourceRequest] = []
+        names: set[str] = set()
+        categories: tuple[
+            tuple[
+                ResourceKind,
+                Mapping[str, str | PathLike[str]] | None,
+            ],
+            ...,
+        ] = (
+            ("image", images),
+            ("animation", animations),
+            ("sound", sounds),
+            ("font", fonts),
+        )
+        for kind, assets in categories:
+            for name, filename in (assets or {}).items():
+                if not isinstance(name, str) or not name.strip():
+                    raise ValueError("asset names must be non-empty strings")
+                if name in names:
+                    raise ValueError(f"duplicate asset name: {name}")
+                if not isinstance(filename, (str, PathLike)):
+                    raise TypeError(
+                        f"asset path for {name!r} must be path-like"
+                    )
+                names.add(name)
+                requests.append(
+                    _ResourceRequest(kind, name, filename)
+                )
+        return ResourceBundle(self, requests)
 
     def load_image(
         self,

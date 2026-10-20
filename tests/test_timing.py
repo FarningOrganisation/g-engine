@@ -172,6 +172,45 @@ class WindowTimingTests(unittest.TestCase):
         self.assertIsNone(window._interpolation)
         self.assertIsNone(window._accumulator)
 
+    @patch("g.window.sys.platform", "linux")
+    @patch("g.window.pyglet.clock.unschedule")
+    @patch("g.window.pyglet.clock.schedule")
+    @patch("g.window.pyglet.app.run")
+    def test_window_pauses_updates_while_assets_advance(
+        self,
+        run: Mock,
+        schedule: Mock,
+        unschedule: Mock,
+    ) -> None:
+        game = Game(10, 10)
+        game._start = Mock()
+        game._stop = Mock()
+        game._update = Mock()
+        game._advance_loading = Mock(side_effect=(True, False))
+        user_update = Mock()
+        window = Window.__new__(Window)
+        window._macos_fullscreen = None
+        window._game = game
+        window._surface = None
+
+        def drive_frames(*, interval: float) -> None:
+            self.assertEqual(interval, 0)
+            process_frame = schedule.call_args.args[0]
+            process_frame(1 / 60)
+            game._update.assert_not_called()
+            user_update.assert_not_called()
+            process_frame(1 / 60)
+
+        run.side_effect = drive_frames
+
+        window.run(user_update, interval=1 / 60)
+
+        self.assertEqual(game._advance_loading.call_count, 2)
+        game._update.assert_called_once_with(1 / 60)
+        user_update.assert_called_once_with(1 / 60)
+        game._stop.assert_called_once_with()
+        unschedule.assert_called_once_with(schedule.call_args.args[0])
+
 
 if __name__ == "__main__":
     unittest.main()

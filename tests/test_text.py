@@ -25,10 +25,23 @@ class TextTests(unittest.TestCase):
             font_name="Game Font",
             font_size=18,
             color=(255, 220, 80),
+            align="center",
             batch=None,
         )
         self.assertIs(type(text), GameObject)
         self.assertIsInstance(text.require_component(TextRenderer), TextRenderer)
+
+    @patch("g.components.text_renderer.pyglet.text.Label")
+    def test_enables_multiline_layout_for_newlines(
+        self,
+        label_type: Mock,
+    ) -> None:
+        label = label_type.return_value
+
+        create_text("Move left\nMove right", 10, 20)
+
+        self.assertTrue(label.multiline)
+        self.assertIsNotNone(label.width)
 
     @patch("g.components.text_renderer.pyglet.text.Label")
     def test_exposes_mutable_text_properties(self, label_type: Mock) -> None:
@@ -42,6 +55,7 @@ class TextTests(unittest.TestCase):
         renderer.font_size = 24
         renderer.color = (10, 20, 30)
         renderer.opacity = 128
+        renderer.alignment = "right"
 
         self.assertEqual(label.text, "Game Over")
         self.assertEqual(label.font_name, "Game Font")
@@ -49,11 +63,19 @@ class TextTests(unittest.TestCase):
         self.assertEqual(label.font_size, 24)
         self.assertEqual(label.color, (10, 20, 30, 255))
         self.assertEqual(label.opacity, 128)
+        self.assertEqual(renderer.alignment, "right")
+        self.assertEqual(label.anchor_x, "right")
 
     @patch("g.components.text_renderer.pyglet.text.Label")
     def test_rejects_non_positive_font_size(self, label_type: Mock) -> None:
         with self.assertRaisesRegex(ValueError, "font_size must be positive"):
             create_text("Score", 10, 20, font_size=0)
+        label_type.assert_not_called()
+
+    @patch("g.components.text_renderer.pyglet.text.Label")
+    def test_rejects_unknown_alignment(self, label_type: Mock) -> None:
+        with self.assertRaisesRegex(ValueError, "alignment must be"):
+            create_text("Score", 10, 20, alignment="middle")
         label_type.assert_not_called()
 
     @patch("g.components.text_renderer.pyglet.text.Label")
@@ -85,10 +107,15 @@ class TextTests(unittest.TestCase):
             3,
             "Score",
             font=self._font("Game Font"),
+            alignment="left",
         )
 
         self.assertEqual(text.position, game.grid.cell_center(2, 3))
         self.assertIs(text.parent, game.root)
+        self.assertEqual(
+            text.require_component(TextRenderer).alignment,
+            "left",
+        )
         label_type.assert_called_once()
 
     @patch("g.components.text_renderer.pyglet.text.Label")

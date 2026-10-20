@@ -9,12 +9,16 @@ Game objects expose a fluent animation builder:
 handle = player.animate().to(0.5, x=400, opacity=255).start()
 handle.pause()
 handle.resume()
+
+if player.is_animating:
+    print("The animation is active")
 ```
 
 Behaviours support waits, callbacks, easing, parallel work, and repetition.
 Numbers, vectors, and RGB/RGBA colors can be interpolated. Starting another
 object animation replaces the previous object animation; GUI widgets use
-named animation channels instead.
+named animation channels instead. `is_animating` remains true while an object
+animation is paused and becomes false when it completes or is cancelled.
 
 See the [behaviours API](../api/behaviours.md) for sequencing and cancellation
 semantics.

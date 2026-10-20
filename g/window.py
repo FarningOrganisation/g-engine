@@ -469,6 +469,9 @@ class Window:
             interpolation.end_step(self._game)
 
         def process_frame(delta_time: float) -> None:
+            if self._game is not None and self._game._advance_loading():
+                accumulator.reset()
+                return
             accumulator.advance(delta_time, simulation_update)
 
         self._game._start()

@@ -108,6 +108,7 @@ def create_text(
     text: str, x: float, y: float, font: Font | None = None,
     font_size: float = 12, color: Color = (255, 255, 255), angle: float = 0,
     layer: int = 0, *, z_index: int | None = None, screen_space: bool = False,
+    alignment: str = "center",
 ) -> GameObject:
     """Create a text object anchored at a world-pixel position.
 
@@ -122,9 +123,17 @@ def create_text(
         layer (int): Legacy alias for ``z_index``.
         z_index (int | None): Drawing order; takes precedence over ``layer``.
         screen_space (bool): Whether to ignore the camera transform.
+        alignment (str): Horizontal alignment around ``(x, y)``.
     """
     obj = GameObject(x, y, rotation=angle, z_index=layer if z_index is None else z_index)
-    obj.add_component(TextRenderer(text, font, font_size, color, screen_space=screen_space))
+    obj.add_component(TextRenderer(
+        text,
+        font,
+        font_size,
+        color,
+        screen_space=screen_space,
+        alignment=alignment,
+    ))
     return obj
 
 

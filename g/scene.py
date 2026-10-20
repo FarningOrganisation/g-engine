@@ -192,6 +192,12 @@ class ObjectLayer(SceneLayer):
             raise ValueError("game object does not belong to this layer")
         self.scene.remove(game_object)
 
+    def detach(self, game_object: GameObject) -> GameObject:
+        """Detach and return a reusable object subtree from this layer."""
+        if game_object.layer is not self:
+            raise ValueError("game object does not belong to this layer")
+        return self.scene.detach(game_object)
+
     def _group_for(self, z_index: int) -> pyglet.graphics.Group:
         if not self.scene.presentation_enabled:
             from .runtime import NullGroup
@@ -820,7 +826,9 @@ class Scene:
         Raises:
             ValueError: If the object is already parented or the layer is invalid.
         """
-        if game_object.parent is not None:
+        if game_object.is_deleted:
+            raise ValueError("cannot add a deleted game object to a scene")
+        if game_object.parent is not None or game_object.scene is not None:
             raise ValueError("game object already belongs to a scene")
         target = self.layers.resolve_object(layer)
         if z_index is not None:
@@ -966,6 +974,7 @@ class Scene:
         *,
         z_index: int | None = None,
         screen_space: bool = False,
+        alignment: str = "center",
     ) -> GameObject:
         """Create and add text anchored at a virtual-pixel position.
 
@@ -983,6 +992,7 @@ class Scene:
                 angle,
                 z_index=order or 0,
                 screen_space=screen_space,
+                alignment=alignment,
             ),
             layer=target,
         )
@@ -1162,18 +1172,59 @@ class Scene:
         obj.z_index = order or 0
         return self.add(obj, layer=target)
 
-    def remove(self, game_object: GameObject) -> None:
-        """Remove an object subtree and dispose of its resources.
+    def detach(self, game_object: GameObject) -> GameObject:
+        """Detach a live object subtree without deleting it.
+
+        Components, renderers, children, properties, and callbacks are
+        preserved so the returned object can be added to a scene again.
 
         Raises:
             ValueError: If the object does not belong to this scene.
-            ExceptionGroup: If cleanup of one or more removed objects fails.
         """
         layer = game_object.layer
-        if not isinstance(layer, ObjectLayer) or layer.scene is not self:
+        if (
+            game_object.scene is not self
+            or not isinstance(layer, ObjectLayer)
+            or layer.scene is not self
+        ):
             raise ValueError("game object does not belong to this scene")
         nodes = game_object.walk()
+        errors: list[Exception] = []
+        for node in reversed(nodes):
+            if not isinstance(node, GameObject):
+                continue
+            for component in reversed(node.components):
+                if not component._ready:
+                    continue
+                try:
+                    component.on_scene_detach()
+                except Exception as error:
+                    errors.append(error)
+                finally:
+                    component._ready = False
         game_object.parent = None
+        self._forget_subtree(nodes)
+        for node in nodes:
+            if not isinstance(node, GameObject):
+                continue
+            for renderer in node.renderers:
+                if self.presentation_enabled:
+                    renderer.bind_batch(None, None)
+            agent = node.get_component(NavigationAgent)
+            if agent is not None:
+                agent.world = None
+            node._scene = None
+            node._layer = None
+        self.physics.refresh()
+        self.physics.refresh_contacts()
+        if errors:
+            raise ExceptionGroup(
+                "GameObject subtree scene-detach failed",
+                errors,
+            )
+        return game_object
+
+    def _forget_subtree(self, nodes: tuple[Node, ...]) -> None:
         removed = set(nodes)
         self._collisions = {
             pair
@@ -1191,6 +1242,24 @@ class Scene:
         }
         self._tile_collisions = {pair for pair in self._tile_collisions if pair[0] not in removed}
         self._tile_overlaps = {pair for pair in self._tile_overlaps if pair[0] not in removed}
+
+    def delete(self, game_object: GameObject) -> None:
+        """Permanently delete an object subtree and release its resources.
+
+        Raises:
+            ValueError: If the object does not belong to this scene.
+            ExceptionGroup: If cleanup of one or more objects fails.
+        """
+        layer = game_object.layer
+        if (
+            game_object.scene is not self
+            or not isinstance(layer, ObjectLayer)
+            or layer.scene is not self
+        ):
+            raise ValueError("game object does not belong to this scene")
+        nodes = game_object.walk()
+        game_object.parent = None
+        self._forget_subtree(nodes)
         self.physics.refresh()
         self.physics.refresh_contacts()
         errors: list[Exception] = []
@@ -1204,6 +1273,10 @@ class Scene:
         if errors:
             raise ExceptionGroup("GameObject subtree cleanup failed", errors)
 
+    def remove(self, game_object: GameObject) -> None:
+        """Compatibility alias for :meth:`delete`."""
+        self.delete(game_object)
+
     def move_to_layer(
         self,
         game_object: GameObject,
@@ -1216,7 +1289,7 @@ class Scene:
         if game_object.layer is target:
             return game_object
         if game_object.parent is not None:
-            game_object.parent.remove_child(game_object)
+            game_object.parent = None
         target.root.add_child(game_object)
         self._prepare_subtree(game_object, target)
         self.physics.refresh()

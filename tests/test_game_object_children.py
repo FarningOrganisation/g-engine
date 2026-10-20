@@ -41,6 +41,47 @@ class GameObjectChildrenTests(unittest.TestCase):
         parent.remove_child(child)
         with self.assertRaises(LookupError):
             child.require_parent()
+        self.assertIs(child.parent, scene.root)
+        self.assertIn(child, scene.objects)
+        self.assertIs(child.scene, scene)
+        self.assertFalse(child.is_deleted)
+
+    def test_remove_child_outside_scene_only_detaches_hierarchy(self) -> None:
+        parent = GameObject()
+        child = GameObject()
+        parent.add_child(child)
+
+        result = parent.remove_child(child)
+
+        self.assertIs(result, child)
+        self.assertIsNone(child.parent)
+        self.assertIsNone(child.scene)
+        self.assertFalse(child.is_deleted)
+
+    def test_remove_child_in_scene_preserves_world_transform(self) -> None:
+        game = Game(320, 180)
+        parent = game.add(GameObject())
+        parent.position = (30, 40)
+        parent.rotation = 25
+        parent.scale = (2, 3)
+        child = GameObject()
+        parent.add_child(child)
+        child.position = (5, -7)
+        child.rotation = 15
+        child.scale = (4, 0.5)
+        game.scenes.current._prepare_subtree(child, parent.require_layer())
+        expected_position = child.world_position
+        expected_rotation = child.world_rotation
+        expected_scale = child.world_scale
+
+        parent.remove_child(child)
+
+        self.assertAlmostEqual(child.world_position.x, expected_position.x)
+        self.assertAlmostEqual(child.world_position.y, expected_position.y)
+        self.assertAlmostEqual(child.world_rotation, expected_rotation)
+        self.assertAlmostEqual(child.world_scale[0], expected_scale[0])
+        self.assertAlmostEqual(child.world_scale[1], expected_scale[1])
+        self.assertIs(child.parent, game.scenes.current.root)
 
     def test_direct_lookup_returns_game_objects_only(self) -> None:
         player = GameObject()

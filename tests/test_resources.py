@@ -3,7 +3,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, Mock, call, patch
 
-from g import Game, Image, ResourceManager, Sound, TextureFilter
+from g import Game, Image, ResourceBundle, ResourceManager, Sound, TextureFilter
 from g.resources import clamp_texture_edges
 from pyglet import gl
 
@@ -86,6 +86,116 @@ class SoundTests(unittest.TestCase):
 class ResourceManagerTests(unittest.TestCase):
     def test_game_provides_resource_manager(self) -> None:
         self.assertIsInstance(Game(10, 10).resources, ResourceManager)
+
+    def test_named_bundle_loads_one_asset_at_a_time_with_progress(self) -> None:
+        game = Game(10, 10)
+        image = Mock(spec=Image)
+        sound = Mock(spec=Sound)
+        progress = Mock()
+        complete = Mock()
+        bundle = game.resources.bundle(
+            images={"player": "player.png"},
+            sounds={"jump": "jump.wav"},
+        )
+        self.assertIsInstance(bundle, ResourceBundle)
+        with (
+            patch.object(
+                game.resources,
+                "load_image",
+                return_value=image,
+            ) as load_image,
+            patch.object(
+                game.resources,
+                "load_sound",
+                return_value=sound,
+            ) as load_sound,
+        ):
+            game.load_assets(
+                bundle,
+                on_progress=progress,
+                on_complete=complete,
+            )
+            self.assertTrue(game.is_loading)
+            self.assertEqual(bundle.current_name, "player")
+            progress.assert_called_once_with(0)
+
+            self.assertTrue(game._advance_loading())
+            self.assertTrue(game.is_loading)
+            self.assertEqual(bundle.progress, 0.5)
+            self.assertIs(bundle.images["player"], image)
+            load_image.assert_called_once_with("player.png")
+            load_sound.assert_not_called()
+
+            self.assertTrue(game._advance_loading())
+
+        self.assertFalse(game.is_loading)
+        self.assertTrue(bundle.loaded)
+        self.assertEqual(bundle.progress, 1)
+        self.assertIs(bundle.sounds["jump"], sound)
+        self.assertEqual(
+            progress.call_args_list,
+            [call(0), call(0.5), call(1)],
+        )
+        complete.assert_called_once_with()
+        self.assertFalse(game._advance_loading())
+
+    def test_bundle_rejects_duplicate_names_across_asset_types(self) -> None:
+        manager = ResourceManager()
+
+        with self.assertRaisesRegex(ValueError, "duplicate asset name"):
+            manager.bundle(
+                images={"player": "player.png"},
+                sounds={"player": "player.wav"},
+            )
+
+    def test_game_rejects_bundle_from_another_resource_manager(self) -> None:
+        game = Game(10, 10)
+        bundle = ResourceManager().bundle(images={"player": "player.png"})
+
+        with self.assertRaisesRegex(ValueError, "different resource manager"):
+            game.load_assets(bundle)
+
+    def test_empty_bundle_completes_immediately(self) -> None:
+        game = Game(10, 10)
+        progress = Mock()
+        complete = Mock()
+        bundle = game.resources.bundle()
+
+        game.load_assets(
+            bundle,
+            on_progress=progress,
+            on_complete=complete,
+        )
+
+        self.assertTrue(bundle.loaded)
+        self.assertFalse(game.is_loading)
+        progress.assert_called_once_with(1)
+        complete.assert_called_once_with()
+
+    def test_bundle_surfaces_asset_errors_and_records_failure(self) -> None:
+        game = Game(10, 10)
+        progress = Mock()
+        bundle = game.resources.bundle(images={"missing": "missing.png"})
+        game.load_assets(bundle, on_progress=progress)
+        error = OSError("missing asset")
+
+        with (
+            patch.object(
+                game.resources,
+                "load_image",
+                side_effect=error,
+            ),
+            self.assertRaises(OSError) as raised,
+        ):
+            game._advance_loading()
+
+        self.assertIs(raised.exception, error)
+        self.assertTrue(bundle.failed)
+        self.assertIs(bundle.error, error)
+        self.assertEqual(bundle.progress, 0)
+        self.assertEqual(bundle.current_name, "missing")
+        self.assertTrue(game.is_loading)
+        progress.assert_called_once_with(0)
 
     @patch("g.resources.Image")
     def test_load_image_caches_equivalent_paths(self, image_type: Mock) -> None:

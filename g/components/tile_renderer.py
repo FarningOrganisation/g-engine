@@ -99,8 +99,20 @@ class TileRenderer(Renderer):
         """All tile sprites, or the placeholder when there are no tiles."""
         return tuple(item[4] for item in self._tiles) or (self.drawable,)
 
-    def bind_batch(self, batch: pyglet.graphics.Batch, group: pyglet.graphics.Group) -> None:
-        """Bind tile sprites to the batch, ordered by source patch."""
+    def bind_batch(
+        self,
+        batch: pyglet.graphics.Batch | None,
+        group: pyglet.graphics.Group | None,
+    ) -> None:
+        """Bind tile sprites to a batch, or unbind them when detached."""
+        if batch is None:
+            for _, _, _, _, sprite, _ in self._tiles:
+                sprite.batch = None
+                sprite.group = None
+            if self._placeholder is not None:
+                self._placeholder.batch = None
+                self._placeholder.group = None
+            return
         groups = {id(patch): pyglet.graphics.Group(order=i, parent=group)
                   for i, patch in enumerate(self.patches)}
         for patch, _, _, _, sprite, _ in self._tiles:

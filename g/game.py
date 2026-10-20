@@ -18,6 +18,7 @@ from .resources import (
     Font,
     Image,
     ImageSource,
+    ResourceBundle,
     ResourceManager,
     TextureFilter,
 )
@@ -38,6 +39,8 @@ MouseDragHandler: TypeAlias = Callable[
     [float, float, float, float, MouseButton, Modifiers], None
 ]
 MouseScrollHandler: TypeAlias = Callable[[float, float, float, float], None]
+LoadingProgressHandler: TypeAlias = Callable[[float], None]
+LoadingCompleteHandler: TypeAlias = Callable[[], None]
 GameObjectType = TypeVar("GameObjectType", bound=GameObject)
 
 
@@ -114,6 +117,9 @@ class Game:
         self.network = NetworkSession(self)
         self.project: ProjectConfig | None = None
         self._started = False
+        self._loading_bundle: ResourceBundle | None = None
+        self._loading_progress_handler: LoadingProgressHandler | None = None
+        self._loading_complete_handler: LoadingCompleteHandler | None = None
         self._key_down_handlers: list[KeyHandler] = []
         self._key_pressed_handlers: list[PressedKeyHandler] = []
         self._key_up_handlers: list[KeyHandler] = []
@@ -438,11 +444,14 @@ class Game:
         *,
         z_index: int | None = None,
         screen_space: bool = False,
+        alignment: str = "center",
     ) -> GameObject:
         """Create and add text anchored at ``(x, y)`` in virtual pixels.
 
         Args:
             screen_space (bool): If true, render independently of the camera.
+            alignment (str): Horizontal alignment around ``(x, y)``:
+                ``"left"``, ``"center"``, or ``"right"``.
 
         Returns:
             GameObject: The created text object.
@@ -458,6 +467,7 @@ class Game:
             layer,
             z_index=z_index,
             screen_space=screen_space,
+            alignment=alignment,
         )
 
     def add_point_light(
@@ -660,12 +670,20 @@ class Game:
         )
 
     def remove(self, game_object: GameObject) -> None:
-        """Remove an object and its subtree from the current scene.
+        """Compatibility alias that permanently deletes an object subtree.
 
         Raises:
             ValueError: If the object does not belong to the current scene.
         """
-        self.scenes.current.remove(game_object)
+        self.scenes.current.delete(game_object)
+
+    def delete(self, game_object: GameObject) -> None:
+        """Permanently delete an object subtree from the current scene."""
+        self.scenes.current.delete(game_object)
+
+    def detach(self, game_object: GameObject) -> GameObject:
+        """Detach and return a reusable object subtree from the current scene."""
+        return self.scenes.current.detach(game_object)
 
     def on_key_down(self, handler: KeyHandler) -> KeyHandler:
         """Register a callback for a key's initial press.
@@ -729,6 +747,65 @@ class Game:
         self.scenes._update(delta_time)
         self._dispatch_pressed_keys(delta_time)
         self.network._after_update(delta_time)
+
+    @property
+    def is_loading(self) -> bool:
+        """Whether an asset bundle is currently being loaded."""
+        return self._loading_bundle is not None
+
+    def load_assets(
+        self,
+        bundle: ResourceBundle,
+        *,
+        on_progress: LoadingProgressHandler | None = None,
+        on_complete: LoadingCompleteHandler | None = None,
+    ) -> None:
+        """Load a named asset bundle incrementally while drawing continues.
+
+        Normal scene and user updates pause until loading completes. One asset
+        is loaded before each rendered frame.
+
+        Args:
+            bundle: Bundle created by this game's resource manager.
+            on_progress: Optional callback receiving progress from 0.0 to 1.0.
+            on_complete: Optional callback invoked after all assets load.
+
+        Raises:
+            ValueError: Another bundle is loading or the bundle belongs to a
+                different resource manager.
+        """
+        if self._loading_bundle is not None:
+            raise ValueError("another asset bundle is already loading")
+        if bundle._manager is not self.resources:
+            raise ValueError(
+                "asset bundle belongs to a different resource manager"
+            )
+        if on_progress is not None:
+            on_progress(bundle.progress)
+        if bundle.loaded:
+            if on_complete is not None:
+                on_complete()
+            return
+        self._loading_bundle = bundle
+        self._loading_progress_handler = on_progress
+        self._loading_complete_handler = on_complete
+
+    def _advance_loading(self) -> bool:
+        bundle = self._loading_bundle
+        if bundle is None:
+            return False
+        bundle._load_next()
+        progress_handler = self._loading_progress_handler
+        if progress_handler is not None:
+            progress_handler(bundle.progress)
+        if bundle.loaded:
+            complete_handler = self._loading_complete_handler
+            self._loading_bundle = None
+            self._loading_progress_handler = None
+            self._loading_complete_handler = None
+            if complete_handler is not None:
+                complete_handler()
+        return True
 
     def _draw(self) -> None:
         self.scenes.current._draw()
@@ -848,6 +925,10 @@ class Game:
         try:
             while self.network.state == "listening":
                 current = monotonic()
+                if self._advance_loading():
+                    previous = current
+                    sleep(min(interval / 4, 0.002))
+                    continue
                 accumulator.advance(current - previous, self._update)
                 previous = current
                 sleep(min(interval / 4, 0.002))

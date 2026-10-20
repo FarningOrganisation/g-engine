@@ -25,6 +25,14 @@ class BehaviourRunner(Component):
         """Current behavior, if one is assigned."""
         return self._behaviour
 
+    @property
+    def is_animating(self) -> bool:
+        """Whether an object animation is active, including while paused."""
+        return (
+            self._animation is not None
+            and self.status is BehaviourStatus.RUNNING
+        )
+
     @behaviour.setter
     def behaviour(self, value: Behaviour | None) -> None:
         """Replace the current behavior and reset its execution state."""

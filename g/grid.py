@@ -247,6 +247,7 @@ class Grid:
         *,
         z_index: int | None = None,
         screen_space: bool = False,
+        alignment: str = "center",
     ) -> GameObject:
         """Create text anchored at the center of a cell."""
         x, y = self.cell_center(column, row)
@@ -262,6 +263,7 @@ class Grid:
                 angle,
                 z_index=order or 0,
                 screen_space=screen_space,
+                alignment=alignment,
             ),
             layer=target,
         )

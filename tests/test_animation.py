@@ -6,13 +6,13 @@ from g import (
     BehaviourStatus,
     CircleRenderer,
     Game,
-    GameObject,
     RectRenderer,
     ShapeStyle,
     Vec2,
     Wait,
     create_rect,
 )
+from g.nodes import GameObject
 
 
 class BehaviourLifecycleTests(unittest.TestCase):
@@ -22,6 +22,7 @@ class BehaviourLifecycleTests(unittest.TestCase):
 
     def test_replacing_completed_behaviour_starts_the_replacement(self) -> None:
         self.obj.behaviour = Wait(0)
+        self.assertFalse(self.obj.is_animating)
         self.game._update(0)
         runner = self.obj.get_component(BehaviourRunner)
         if runner is None:
@@ -70,11 +71,13 @@ class AnimationTests(unittest.TestCase):
 
     def test_animation_handle_controls_playback_and_completion(self) -> None:
         on_complete = Mock()
+        self.assertFalse(self.obj.is_animating)
         handle = (
             self.obj.animate()
             .to(1, x=100)
             .start(on_complete=on_complete)
         )
+        self.assertTrue(self.obj.is_animating)
 
         self.game._update(0.25)
         self.assertEqual(self.obj.x, 25)
@@ -84,11 +87,13 @@ class AnimationTests(unittest.TestCase):
         self.game._update(0.5)
         self.assertEqual(self.obj.x, 25)
         self.assertTrue(handle.paused)
+        self.assertTrue(self.obj.is_animating)
 
         handle.resume()
         self.game._update(0.75)
         self.assertEqual(self.obj.x, 100)
         self.assertTrue(handle.completed)
+        self.assertFalse(self.obj.is_animating)
         on_complete.assert_called_once_with(self.obj)
 
         self.game._update(1)
@@ -110,14 +115,17 @@ class AnimationTests(unittest.TestCase):
         handle = self.obj.animate().to(1, x=100).start()
         self.game._update(0.25)
         handle.cancel()
+        self.assertFalse(self.obj.is_animating)
         self.game._update(1)
         self.assertEqual(self.obj.x, 25)
         self.assertTrue(handle.cancelled)
 
         handle.restart()
+        self.assertTrue(self.obj.is_animating)
         self.game._update(1)
         self.assertEqual(self.obj.x, 100)
         self.assertTrue(handle.completed)
+        self.assertFalse(self.obj.is_animating)
 
     def test_animation_can_loop(self) -> None:
         callback = Mock()

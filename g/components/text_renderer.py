@@ -8,7 +8,7 @@ from ..inspector import inspector_field
 from ..runtime import NullDrawable, presentation_enabled
 
 class TextRenderer(Renderer):
-    """Render centered text using a project font or pyglet's default font.
+    """Render aligned text with automatic support for explicit newlines.
 
     Attributes:
         text: Displayed text.
@@ -16,6 +16,7 @@ class TextRenderer(Renderer):
         font_size: Font size in points before transform scaling.
         color: Text color.
         opacity: Text opacity.
+        alignment: Horizontal alignment around the owner's position.
     """
     __inspector_fields__ = {
         "text": inspector_field("Text", tooltip="Text displayed by this renderer."),
@@ -23,6 +24,11 @@ class TextRenderer(Renderer):
         "font_size": inspector_field(24.0, minimum=0.001, tooltip="Font size in points."),
         "color": inspector_field([255, 255, 255, 255], widget="color", tooltip="Text color."),
         "opacity": inspector_field(255, minimum=0, maximum=255, tooltip="Opacity from transparent (0) to opaque (255)."),
+        "alignment": inspector_field(
+            "center",
+            choices=("left", "center", "right"),
+            tooltip="Horizontal alignment around the object's position.",
+        ),
     }
     def __init__(
         self,
@@ -34,6 +40,7 @@ class TextRenderer(Renderer):
         batch: pyglet.graphics.Batch | None = None,
         visible: bool = True,
         screen_space: bool = False,
+        alignment: str = "center",
     ) -> None:
         """Create a text renderer.
 
@@ -45,15 +52,23 @@ class TextRenderer(Renderer):
             batch: Optional pyglet batch for the label.
             visible: Whether the text is shown.
             screen_space: Whether the text uses screen coordinates.
+            alignment: Horizontal alignment: ``"left"``, ``"center"``, or
+                ``"right"``.
 
         Raises:
-            ValueError: ``font_size`` is not positive.
+            ValueError: ``font_size`` is not positive or ``alignment`` is
+                unsupported.
         """
         super().__init__(visible=visible, screen_space=screen_space)
         if font_size <= 0:
             raise ValueError("font_size must be positive")
+        if alignment not in {"left", "center", "right"}:
+            raise ValueError(
+                "alignment must be 'left', 'center', or 'right'"
+            )
         self._font = font
         self._font_size = font_size
+        self._alignment = alignment
         if not presentation_enabled():
             self._drawable = NullDrawable()
             self._drawable.text = text
@@ -62,18 +77,22 @@ class TextRenderer(Renderer):
             )
             self._drawable.font_size = font_size
             self._drawable.color = color
+            self._drawable.anchor_x = alignment
+            self._drawable.multiline = True
             return
         self._drawable = pyglet.text.Label(
             text,
             0,
             0,
-            anchor_x="center",
+            anchor_x=alignment,
             anchor_y="center",
             font_name=None if font is None else font.family,
             font_size=font_size,
             color=color,
+            align=alignment,
             batch=batch,
         )
+        self._fit_multiline()
 
     @property
     def drawable(self) -> pyglet.text.Label:
@@ -87,8 +106,9 @@ class TextRenderer(Renderer):
 
     @text.setter
     def text(self, value: str) -> None:
-        """Replace the text content."""
+        """Replace the text content and fit explicit newline-separated lines."""
         self._drawable.text = value
+        self._fit_multiline()
 
     @property
     def font(self) -> Font | None:
@@ -102,6 +122,7 @@ class TextRenderer(Renderer):
         self._drawable.font_name = (
             pyglet.font.load().name if value is None else value.family
         )
+        self._fit_multiline()
 
     @property
     def font_size(self) -> float:
@@ -115,6 +136,7 @@ class TextRenderer(Renderer):
             raise ValueError("font_size must be positive")
         self._font_size = value
         self._drawable.font_size = value
+        self._fit_multiline()
 
     @property
     def color(self) -> Color:
@@ -136,6 +158,46 @@ class TextRenderer(Renderer):
         """Set text opacity."""
         self._drawable.opacity = value
 
+    @property
+    def alignment(self) -> str:
+        """Horizontal alignment around the owner's x-coordinate."""
+        return self._alignment
+
+    @alignment.setter
+    def alignment(self, value: str) -> None:
+        """Set horizontal alignment to left, center, or right.
+
+        Raises:
+            ValueError: ``value`` is not a supported alignment.
+        """
+        if value not in {"left", "center", "right"}:
+            raise ValueError(
+                "alignment must be 'left', 'center', or 'right'"
+            )
+        self._alignment = value
+        self._drawable.anchor_x = value
+        if not isinstance(self._drawable, NullDrawable):
+            self._drawable.document.set_style(
+                0,
+                len(self._drawable.document.text),
+                {"align": value},
+            )
+
+    def _fit_multiline(self) -> None:
+        if isinstance(self._drawable, NullDrawable):
+            return
+        self._drawable.multiline = False
+        self._drawable.width = None
+        self._drawable.width = max(
+            1,
+            int(self._drawable.content_width) + 2,
+        )
+        self._drawable.multiline = True
+        self._drawable.width = max(
+            1,
+            int(self._drawable.content_width) + 2,
+        )
+
     def sync(self) -> None:
         """Synchronize position, rotation, scaled font size, and visibility."""
         if self.owner is None:
@@ -146,4 +208,5 @@ class TextRenderer(Renderer):
         scaled_size = self._font_size * max(abs(scale_x), abs(scale_y))
         if self._drawable.font_size != scaled_size:
             self._drawable.font_size = scaled_size
+            self._fit_multiline()
         self._drawable.visible = self.effective_visible

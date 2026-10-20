@@ -282,8 +282,12 @@ class TrailRenderer(Renderer):
         if len(self._segments) > self.max_segments:
             del self._segments[:len(self._segments) - self.max_segments]
 
-    def bind_batch(self, batch: Batch, group: Group) -> None:
-        """Allocate bounded vertex storage in the supplied pyglet batch."""
+    def bind_batch(
+        self,
+        batch: Batch | None,
+        group: Group | None,
+    ) -> None:
+        """Allocate vertex storage in a batch or release it when detached."""
         if not self._presentation_enabled:
             return
         self._placeholder.batch = batch
@@ -293,7 +297,7 @@ class TrailRenderer(Renderer):
         self._delete_vertex_list()
         self._batch = batch
         self._group = group
-        if self._texture is None:
+        if batch is None or self._texture is None:
             return
         program = pyglet.sprite.get_default_shader()
         render_group = SpriteGroup(
