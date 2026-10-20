@@ -1,4 +1,4 @@
-# g
+# g-engine
 
 `g` is a beginner-friendly, component-based 2D game engine written in Python
 and built on top of pyglet. Simple games can use the procedural `Game` API,
@@ -7,11 +7,11 @@ custom shaders, and the optional visual editor.
 
 ## Documentation
 
-Start with the [documentation home](docs/index.md), the
-[first-game tutorial](docs/getting-started/first-game.md), and the
-[editor guide](docs/getting-started/editor.md).
-The documentation website includes a public API reference generated from
-Google-style docstrings.
+Read the **[online documentation](https://farningorganisation.github.io/g-engine/)**:
+
+- [First-game tutorial](https://farningorganisation.github.io/g-engine/getting-started/first-game/)
+- [Editor guide](https://farningorganisation.github.io/g-engine/getting-started/editor/)
+- [Public API reference](https://farningorganisation.github.io/g-engine/api/), generated from Google-style docstrings
 
 To preview or validate it from this checkout:
 
