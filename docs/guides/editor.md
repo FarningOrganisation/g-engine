@@ -44,6 +44,25 @@ The default workspace contains:
 The docking layout is saved between sessions. Panels can be moved, resized,
 closed, and reopened from the editor menus.
 
+## Appearance and help
+
+The editor opens with a branded g-engine and Farning splash screen, then uses
+the operating system's light or dark application appearance by default.
+
+Choose **Window > Theme** to switch between:
+
+- **System**: detect the macOS, Windows, or supported Linux desktop appearance
+  the next time the editor starts.
+- **Light**: use the white, navy, and teal editor palette.
+- **Dark**: use the navy, black, teal, and white editor palette.
+
+The choice is stored in `~/.g-editor/settings.json`. Choosing **System**
+restores operating-system detection; explicit Light or Dark choices remain in
+effect across restarts.
+
+Use **Help > Documentation** to open the published g-engine documentation or
+**Help > Farning Website** to visit the company website.
+
 ## Objects, selection, and transforms
 
 Create objects from the Hierarchy `+` menu, the viewport context menu, or by
@@ -194,6 +213,37 @@ using temporary runtime state. **Stop** restores the authored scene document.
 Gameplay mutations are not a substitute for editing and saving the scene.
 Save authored changes before Play when they should persist.
 
+## Project validation
+
+The editor validates the project before entering Play mode and before export.
+Use **Project > Validate Project** to run the same checks manually. Validation
+collects independent errors where possible and reports them in the editor
+status and Console, including:
+
+- Missing image, font, audio, scene, prefab, particle, and shader files
+- Invalid project scripts and unsupported serialized object, component, or GUI
+  types
+- Broken object references and invalid prefab or scene formats
+- Invalid startup scenes, display settings, export metadata, and
+  platform-specific application names
+- Absolute asset paths or paths that leave the project root
+
+Validation uses the unsaved in-memory version of the scene currently open in
+the editor. Other project scenes and prefabs are read from disk.
+
+For automation and continuous integration, run:
+
+```bash
+g-validate g.project.json
+g-validate g.project.json --purpose export --target windows
+g-validate g.project.json --json
+```
+
+The command exits with status `1` when errors are found. Project scripts are
+imported so their registered object and component types can be checked. Use
+`--no-import-scripts` when only static script syntax and file checks are
+appropriate for an untrusted project.
+
 ## Saving and undo
 
 Use **New Scene**, **Load Scene**, **Save Scene**, and **Save Scene As** from
@@ -213,7 +263,8 @@ python -m pip install ".[export]"
 
 Use **Project > Export Game** to configure the application name, version,
 startup scene, and optional icon. Builds are written below `dist/`, and output
-appears in Console.
+appears in Console. Export stops before invoking PyInstaller when project
+validation fails.
 
 The same project can be exported from the command line:
 

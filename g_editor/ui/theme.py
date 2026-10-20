@@ -4,6 +4,8 @@ from pathlib import Path
 
 from imgui_bundle import icons_fontawesome_6, imgui
 
+from ..preferences import ResolvedTheme
+
 
 _FONT_PATH = (
     Path(__file__).resolve().parents[1]
@@ -30,6 +32,12 @@ _ICON_FONT_PATH = (
     / "fonts"
     / "Font_Awesome_6_Free-Solid-900.otf"
 )
+
+LIGHT_THEME_TEXT = (0.13, 0.18, 0.35, 1)
+LIGHT_THEME_BUTTON = (0.88, 0.92, 0.95, 1)
+LIGHT_THEME_BUTTON_HOVERED = (0.72, 0.83, 0.89, 1)
+LIGHT_THEME_BUTTON_ACTIVE = (0.65, 0.78, 0.85, 1)
+LIGHT_THEME_BUTTON_SELECTED = (0.66, 0.79, 0.86, 1)
 
 
 def configure_fonts(size_pixels: float = 16) -> Path:
@@ -70,8 +78,12 @@ def configure_console_font(
     )
 
 
-def configure_style() -> None:
-    imgui.style_colors_dark()
+def configure_style(theme: ResolvedTheme = "dark") -> None:
+    """Apply the light or dark editor palette and shared geometry."""
+    if theme == "light":
+        imgui.style_colors_light()
+    else:
+        imgui.style_colors_dark()
     style = imgui.get_style()
     style.window_rounding = 6
     style.child_rounding = 5
@@ -87,7 +99,7 @@ def configure_style() -> None:
     style.indent_spacing = 18
     style.scrollbar_size = 13
 
-    colors = {
+    dark_colors = {
         imgui.Col_.window_bg: (0.043, 0.051, 0.067, 1),
         imgui.Col_.child_bg: (0.052, 0.062, 0.081, 1),
         imgui.Col_.popup_bg: (0.058, 0.069, 0.090, 0.98),
@@ -121,5 +133,40 @@ def configure_style() -> None:
         imgui.Col_.scrollbar_grab_hovered: (0.20, 0.25, 0.32, 1),
         imgui.Col_.scrollbar_grab_active: (0.10, 0.43, 0.58, 1),
     }
+    light_colors = {
+        imgui.Col_.window_bg: (0.965, 0.972, 0.984, 1),
+        imgui.Col_.child_bg: (1, 1, 1, 1),
+        imgui.Col_.popup_bg: (1, 1, 1, 0.98),
+        imgui.Col_.border: (0.73, 0.77, 0.84, 1),
+        imgui.Col_.frame_bg: (0.88, 0.91, 0.95, 1),
+        imgui.Col_.frame_bg_hovered: (0.79, 0.86, 0.91, 1),
+        imgui.Col_.frame_bg_active: (0.70, 0.81, 0.88, 1),
+        imgui.Col_.button: LIGHT_THEME_BUTTON,
+        imgui.Col_.button_hovered: LIGHT_THEME_BUTTON_HOVERED,
+        imgui.Col_.button_active: LIGHT_THEME_BUTTON_ACTIVE,
+        imgui.Col_.header: (0.82, 0.88, 0.92, 1),
+        imgui.Col_.header_hovered: (0.29, 0.56, 0.67, 1),
+        imgui.Col_.header_active: (0, 0.35, 0.52, 1),
+        imgui.Col_.check_mark: (0, 0.35, 0.52, 1),
+        imgui.Col_.slider_grab: (0, 0.35, 0.52, 1),
+        imgui.Col_.slider_grab_active: (0.13, 0.18, 0.35, 1),
+        imgui.Col_.separator: (0.70, 0.74, 0.81, 1),
+        imgui.Col_.separator_hovered: (0, 0.35, 0.52, 1),
+        imgui.Col_.separator_active: (0.13, 0.18, 0.35, 1),
+        imgui.Col_.title_bg: (0.88, 0.91, 0.95, 1),
+        imgui.Col_.title_bg_active: (0.78, 0.84, 0.90, 1),
+        imgui.Col_.menu_bar_bg: (0.91, 0.93, 0.96, 1),
+        imgui.Col_.tab: (0.84, 0.88, 0.92, 1),
+        imgui.Col_.tab_hovered: (0.29, 0.56, 0.67, 1),
+        imgui.Col_.tab_selected: LIGHT_THEME_BUTTON_SELECTED,
+        imgui.Col_.text: LIGHT_THEME_TEXT,
+        imgui.Col_.text_disabled: (0.43, 0.47, 0.56, 1),
+        imgui.Col_.text_selected_bg: (0, 0.35, 0.52, 0.30),
+        imgui.Col_.scrollbar_bg: (0.91, 0.93, 0.96, 1),
+        imgui.Col_.scrollbar_grab: (0.70, 0.74, 0.81, 1),
+        imgui.Col_.scrollbar_grab_hovered: (0.50, 0.58, 0.68, 1),
+        imgui.Col_.scrollbar_grab_active: (0, 0.35, 0.52, 1),
+    }
+    colors = light_colors if theme == "light" else dark_colors
     for target, value in colors.items():
         style.set_color_(target.value, imgui.ImVec4(*value))

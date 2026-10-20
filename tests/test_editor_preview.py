@@ -4,7 +4,7 @@ from copy import deepcopy
 from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest.mock import Mock, PropertyMock, call, patch
+from unittest.mock import ANY, Mock, PropertyMock, call, patch
 
 import pyglet
 from pyglet.window import key, mouse
@@ -60,6 +60,24 @@ from g_editor.ui.fields import FieldResult
 
 
 class ImGuiEditorTests(unittest.TestCase):
+    def test_project_validation_uses_unsaved_open_scene(self) -> None:
+        from g import ProjectConfig
+
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.editor.project = ProjectConfig.create(root)
+            self.editor.state.asset_root = root
+            self.editor.state.filename = root / "main.scene.json"
+            self.editor.state.document.settings["image"] = "missing.png"
+
+            self.assertFalse(self.editor._validate_project("preview"))
+
+            self.assertIn(
+                "missing image asset: missing.png",
+                self.editor.state.error or "",
+            )
+            self.assertIn("1 error", self.editor.state.status)
+
     def test_run_editor_uses_scene_directory_as_working_and_asset_root(
         self,
     ) -> None:
@@ -69,7 +87,12 @@ class ImGuiEditorTests(unittest.TestCase):
                 scene = Path(directory) / "scenes" / "race.scene.json"
                 scene.parent.mkdir()
                 resolved_scene = scene.resolve()
-                with patch("g_editor.application.ImGuiEditor") as editor_type:
+                with (
+                    patch(
+                        "g_editor.application.ImGuiEditor"
+                    ) as editor_type,
+                    patch("g_editor.splash.EditorSplash") as splash_type,
+                ):
                     editor_type.return_value.run.return_value = 0
                     self.assertEqual(run_editor(scene), 0)
                 self.assertEqual(Path.cwd().resolve(), resolved_scene.parent)
@@ -77,7 +100,20 @@ class ImGuiEditorTests(unittest.TestCase):
                     resolved_scene,
                     resolved_scene.parent,
                     (),
+                    start_hidden=True,
+                    preferences=ANY,
+                    preferences_path=(
+                        Path.home() / ".g-editor" / "settings.json"
+                    ),
                 )
+                (
+                    splash_type.return_value.__enter__.return_value.finish
+                    .assert_called_once_with()
+                )
+                editor_type.return_value.window.set_visible.assert_called_once_with(
+                    True
+                )
+                editor_type.return_value.window.activate.assert_called_once_with()
         finally:
             os.chdir(original)
 
@@ -2560,10 +2596,24 @@ class ImGuiEditorTests(unittest.TestCase):
         original_header = imgui.collapsing_header
 
         for selected_mode in (2, 1, 0):
-            def choice(label, selected, choices, buffer_key=None, *, mode=selected_mode):
+            def choice(
+                label,
+                selected,
+                choices,
+                buffer_key=None,
+                *,
+                mode=selected_mode,
+                **kwargs,
+            ):
                 if label == "Source":
                     return True, mode
-                return original_choice(label, selected, choices, buffer_key)
+                return original_choice(
+                    label,
+                    selected,
+                    choices,
+                    buffer_key,
+                    **kwargs,
+                )
 
             with (
                 patch.object(self.editor, "_choice_property", side_effect=choice),
@@ -4199,6 +4249,22 @@ class ImGuiEditorTests(unittest.TestCase):
         ):
             self.assertTrue(issubclass(field_type, PropertyField))
 
+    def test_inspector_property_helpers_forward_tooltips(self) -> None:
+        with patch("g_editor.panels.inspector.TextField") as text_field:
+            text_field.return_value.draw.return_value = FieldResult(
+                False,
+                "Player",
+            )
+            self.editor._text_property(
+                "Name",
+                "Player",
+                tooltip="A descriptive object name.",
+            )
+        text_field.return_value.draw.assert_called_once_with(
+            "Player",
+            tooltip="A descriptive object name.",
+        )
+
     def test_vec2_field_edits_both_coordinates_without_mutating_input(self) -> None:
         from g_editor.ui import Vec2Field
         from g import Vec2
@@ -4276,7 +4342,7 @@ class ImGuiEditorTests(unittest.TestCase):
         self.editor.state.reset_component(0)
         self.assertEqual(components[0]["properties"]["velocity"], {"$vec2": [0, 0]})
 
-    def test_component_tooltips_appear_when_hovering_label(self) -> None:
+    def test_component_tooltips_appear_over_label_and_control(self) -> None:
         from g import Script, inspector_field
 
         class Behavior(Script):
@@ -4323,7 +4389,7 @@ class ImGuiEditorTests(unittest.TestCase):
                     imgui.get_io().add_mouse_pos_event(rectangles[label][0] + 180, rectangles[label][1])
                     with patch("g_editor.panels.inspector.imgui.set_tooltip", wraps=imgui.set_tooltip) as tooltips:
                         self.editor.on_draw()
-                    self.assertNotIn(call(f"{label} tooltip"), tooltips.call_args_list)
+                    self.assertIn(call(f"{label} tooltip"), tooltips.call_args_list)
             self.assertIsNone(self.editor.state.error)
         finally:
             scene_types.unregister_module(Behavior.__module__)

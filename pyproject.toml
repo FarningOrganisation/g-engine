@@ -47,6 +47,7 @@ all = [
 
 [project.scripts]
 g-editor = "g_editor:main"
+g-validate = "g.validation:main"
 
 [tool.setuptools]
 include-package-data = false
@@ -57,6 +58,7 @@ include = ["g", "g.*", "g_editor", "g_editor.*"]
 [tool.setuptools.package-data]
 g = ["py.typed", "doc/*.md"]
 g_editor = [
+    "assets/brand/*.png",
     "assets/fonts/Inter/OFL.txt",
     "assets/fonts/Inter/static/Inter_18pt-Regular.ttf",
     "assets/fonts/JetBrains_Mono/OFL.txt",

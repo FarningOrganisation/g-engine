@@ -38,16 +38,20 @@ def begin_panel(
     return visible
 
 
+def _push_selected_button_color() -> None:
+    imgui.push_style_color(
+        imgui.Col_.button,
+        imgui.get_style().color_(imgui.Col_.tab_selected),
+    )
+
+
 def selected_button(
     label: str,
     selected: bool,
     size: imgui.ImVec2 | None = None,
 ) -> bool:
     if selected:
-        imgui.push_style_color(
-            imgui.Col_.button,
-            imgui.ImVec4(0.06, 0.46, 0.63, 1),
-        )
+        _push_selected_button_color()
     clicked = (
         imgui.button(label)
         if size is None
@@ -67,10 +71,7 @@ def icon_button(
     selected: bool = False,
 ) -> bool:
     if selected:
-        imgui.push_style_color(
-            imgui.Col_.button,
-            imgui.ImVec4(0.06, 0.46, 0.63, 1),
-        )
+        _push_selected_button_color()
     clicked = (
         imgui.button(f"{icon}##{identifier}")
         if size is None

@@ -763,6 +763,7 @@ class InspectorPanel(EditorPanel):
         changed, color = self._color_widget(
             "Background",
             background,
+            tooltip="The color shown where no game object is drawn.",
         )
         if changed:
             self.state.set_scene_background(color)
@@ -773,6 +774,10 @@ class InspectorPanel(EditorPanel):
         changed, color = self._color_widget(
             "Ambient Light",
             ambient,
+            tooltip=(
+                "The base light color applied to the whole scene when "
+                "native 2D lighting is active."
+            ),
         )
         if changed:
             self.state.set_scene_ambient_light(color)
@@ -847,6 +852,9 @@ class InspectorPanel(EditorPanel):
                 label,
                 position[index],
                 speed=1,
+                tooltip=(
+                    "The starting camera center in scene coordinates."
+                ),
             )
             if changed:
                 position[index] = value
@@ -867,6 +875,10 @@ class InspectorPanel(EditorPanel):
             ),
             speed=0.01,
             minimum=0.001,
+            tooltip=(
+                "The starting camera magnification. Values above 1 zoom "
+                "in; values below 1 zoom out."
+            ),
         )
         if changed:
             self.state.set_scene_camera_value("zoom", zoom)
@@ -880,6 +892,7 @@ class InspectorPanel(EditorPanel):
                 else 0
             ),
             speed=1,
+            tooltip="The starting camera rotation in degrees.",
         )
         if changed:
             self.state.set_scene_camera_value("rotation", rotation)
@@ -918,6 +931,10 @@ class InspectorPanel(EditorPanel):
             "Resolution Preset",
             preset_index,
             preset_labels,
+            tooltip=(
+                "Selects a common virtual game resolution. Choose Custom "
+                "to enter the width and height yourself."
+            ),
         )
         if changed and preset_index > 0:
             resolution = list(
@@ -933,6 +950,10 @@ class InspectorPanel(EditorPanel):
                 label,
                 updated_resolution[index],
                 minimum=1,
+                tooltip=(
+                    "The virtual game resolution used by the camera and "
+                    "viewport, not necessarily the window's pixel size."
+                ),
             )
             if changed:
                 updated_resolution[index] = value
@@ -959,6 +980,10 @@ class InspectorPanel(EditorPanel):
             "Presentation Scaling",
             selected_scaling,
             scaling_modes,
+            tooltip=(
+                "Controls how the virtual game resolution fits inside the "
+                "window when their aspect ratios differ."
+            ),
         )
         if changed:
             self.state.set_presentation_value(
@@ -972,16 +997,31 @@ class InspectorPanel(EditorPanel):
         changed, matte = self._color_widget(
             "Presentation Matte",
             matte,
+            tooltip=(
+                "The color used for empty bars around the game when the "
+                "presentation does not fill the window."
+            ),
         )
         if changed:
             self.state.set_presentation_value("matte_color", matte)
-        for label, key_name, default in (
-            ("Resizable Window", "resizable", True),
-            ("Start Fullscreen", "fullscreen", False),
+        for label, key_name, default, tooltip in (
+            (
+                "Resizable Window",
+                "resizable",
+                True,
+                "Allows players to resize the game window.",
+            ),
+            (
+                "Start Fullscreen",
+                "fullscreen",
+                False,
+                "Starts the game in fullscreen mode.",
+            ),
         ):
             changed, value = self._bool_property(
                 label,
                 bool(presentation.get(key_name, default)),
+                tooltip=tooltip,
             )
             if changed:
                 self.state.set_presentation_value(key_name, value)
@@ -2261,6 +2301,10 @@ class InspectorPanel(EditorPanel):
         changed, value = self._text_property(
             "Name",
             str(record.get("name") or ""),
+            tooltip=(
+                "A descriptive name used to identify this object in the "
+                "scene hierarchy."
+            ),
         )
         if changed:
             self.state.set_object_value("name", value)
@@ -2279,11 +2323,19 @@ class InspectorPanel(EditorPanel):
             f"{coordinate_prefix} X",
             x,
             speed=0.5,
+            tooltip=(
+                f"The object's horizontal {transform_space} position in "
+                "scene units."
+            ),
         )
         changed_y, y = self._float_property(
             f"{coordinate_prefix} Y",
             y,
             speed=0.5,
+            tooltip=(
+                f"The object's vertical {transform_space} position in "
+                "scene units."
+            ),
         )
         if changed_x or changed_y:
             if transform_space == "global":
@@ -2314,6 +2366,9 @@ class InspectorPanel(EditorPanel):
             f"{coordinate_prefix} Rotation",
             rotation_value,
             speed=0.5,
+            tooltip=(
+                f"The object's {transform_space} rotation in degrees."
+            ),
         )
         if changed:
             if transform_space == "global":
@@ -2328,6 +2383,10 @@ class InspectorPanel(EditorPanel):
                 label,
                 float(value) if isinstance(value, (int, float)) else 1,
                 speed=0.01,
+                tooltip=(
+                    "Multiplies the object's size along this axis. "
+                    "A value of 1 keeps its original size."
+                ),
             )
             if changed:
                 self.state.set_object_value(key_name, numeric)
@@ -2356,6 +2415,10 @@ class InspectorPanel(EditorPanel):
             "Layer",
             selected_layer_index,
             layer_names,
+            tooltip=(
+                "The scene layer that contains this object and controls "
+                "its broad drawing order."
+            ),
         )
         if changed:
             try:
@@ -2364,14 +2427,28 @@ class InspectorPanel(EditorPanel):
                 )
             except (ValueError, SceneFormatError) as error:
                 self.state.error = str(error)
-        for label, key_name in (
-            ("Enabled", "enabled"),
-            ("Visible", "visible"),
-            ("Render behind parent", "render_behind_parent"),
+        for label, key_name, tooltip in (
+            (
+                "Enabled",
+                "enabled",
+                "Controls whether this object's behavior and components "
+                "are active.",
+            ),
+            (
+                "Visible",
+                "visible",
+                "Controls whether this object and its renderers are drawn.",
+            ),
+            (
+                "Render behind parent",
+                "render_behind_parent",
+                "Draws this child behind its parent instead of in front.",
+            ),
         ):
             changed, value = self._bool_property(
                 label,
                 bool(record.get(key_name, key_name != "render_behind_parent")),
+                tooltip=tooltip,
             )
             if changed:
                 self.state.set_object_value(key_name, value)
@@ -2684,14 +2761,6 @@ class InspectorPanel(EditorPanel):
             if is_collider and name == "shape":
                 choices = choices or COLLIDER_SHAPES
             field_label = field.label if field is not None and field.label else _component_field_label(name)
-            label_position = imgui.get_cursor_screen_pos()
-            label_size = imgui.calc_text_size(field_label)
-            label_minimum = imgui.ImVec2(
-                label_position.x, label_position.y + imgui.get_style().frame_padding.y,
-            )
-            label_maximum = imgui.ImVec2(
-                label_minimum.x + label_size.x, label_minimum.y + label_size.y,
-            )
             imgui.begin_group()
             if choices:
                 selected = (
@@ -2706,6 +2775,7 @@ class InspectorPanel(EditorPanel):
                     ),
                     selected,
                     list(choices),
+                    tooltip=field.tooltip if field is not None else None,
                 )
                 new_value: JsonValue = choices[selected]
             else:
@@ -2721,10 +2791,7 @@ class InspectorPanel(EditorPanel):
                     field=field,
                 )
             imgui.end_group()
-            if (
-                field is not None and field.tooltip and imgui.is_item_hovered()
-                and imgui.is_mouse_hovering_rect(label_minimum, label_maximum)
-            ):
+            if field is not None and field.tooltip and imgui.is_item_hovered():
                 imgui.set_tooltip(field.tooltip)
             if name == "override_collision_filtering" and inherits_filter:
                 imgui.text_disabled("Inherits PhysicsBody filtering")
@@ -3096,8 +3163,15 @@ class InspectorPanel(EditorPanel):
         label: str,
         value: str,
         identifier: str | None = None,
+        *,
+        tooltip: str | None = None,
     ) -> tuple[bool, str]:
-        result = TextField(label, identifier).draw(value)
+        field = TextField(label, identifier)
+        result = (
+            field.draw(value)
+            if tooltip is None
+            else field.draw(value, tooltip=tooltip)
+        )
         return result.changed, result.value
 
     @staticmethod
@@ -3105,8 +3179,15 @@ class InspectorPanel(EditorPanel):
         label: str,
         value: bool,
         identifier: str | None = None,
+        *,
+        tooltip: str | None = None,
     ) -> tuple[bool, bool]:
-        result = BooleanField(label, identifier).draw(value)
+        field = BooleanField(label, identifier)
+        result = (
+            field.draw(value)
+            if tooltip is None
+            else field.draw(value, tooltip=tooltip)
+        )
         return result.changed, result.value
 
     @staticmethod
@@ -3117,6 +3198,7 @@ class InspectorPanel(EditorPanel):
         *,
         minimum: int | None = None,
         maximum: int | None = None,
+        tooltip: str | None = None,
     ) -> tuple[bool, int]:
         field_minimum = (
             minimum if minimum is not None else -_INTEGER_FIELD_LIMIT
@@ -3127,12 +3209,17 @@ class InspectorPanel(EditorPanel):
         if minimum is None and maximum is None:
             field_minimum = 0
             field_maximum = 0
-        result = IntegerField(
+        field = IntegerField(
             label,
             identifier,
             minimum=field_minimum,
             maximum=field_maximum,
-        ).draw(value)
+        )
+        result = (
+            field.draw(value)
+            if tooltip is None
+            else field.draw(value, tooltip=tooltip)
+        )
         return result.changed, result.value
 
     @staticmethod
@@ -3144,6 +3231,7 @@ class InspectorPanel(EditorPanel):
         speed: float = 0.1,
         minimum: float | None = None,
         maximum: float | None = None,
+        tooltip: str | None = None,
     ) -> tuple[bool, float]:
         field_minimum = (
             minimum if minimum is not None else -_FLOAT_FIELD_LIMIT
@@ -3154,13 +3242,18 @@ class InspectorPanel(EditorPanel):
         if minimum is None and maximum is None:
             field_minimum = 0
             field_maximum = 0
-        result = FloatField(
+        field = FloatField(
             label,
             identifier,
             speed=speed,
             minimum=field_minimum,
             maximum=field_maximum,
-        ).draw(value)
+        )
+        result = (
+            field.draw(value)
+            if tooltip is None
+            else field.draw(value, tooltip=tooltip)
+        )
         return result.changed, result.value
 
     @staticmethod
@@ -3170,13 +3263,20 @@ class InspectorPanel(EditorPanel):
         minimum: float,
         maximum: float,
         identifier: str | None = None,
+        *,
+        tooltip: str | None = None,
     ) -> tuple[bool, float]:
-        result = SliderFloatField(
+        field = SliderFloatField(
             label,
             identifier,
             minimum=minimum,
             maximum=maximum,
-        ).draw(value)
+        )
+        result = (
+            field.draw(value)
+            if tooltip is None
+            else field.draw(value, tooltip=tooltip)
+        )
         return result.changed, result.value
 
     @staticmethod
@@ -3185,12 +3285,19 @@ class InspectorPanel(EditorPanel):
         index: int,
         values: list[str],
         identifier: str | None = None,
+        *,
+        tooltip: str | None = None,
     ) -> tuple[bool, int]:
-        result = ChoiceField(
+        field = ChoiceField(
             label,
             values,
             identifier,
-        ).draw(index)
+        )
+        result = (
+            field.draw(index)
+            if tooltip is None
+            else field.draw(index, tooltip=tooltip)
+        )
         return result.changed, result.value
 
     @staticmethod
@@ -3222,6 +3329,8 @@ class InspectorPanel(EditorPanel):
     def _color_widget(
         label: str,
         value: JsonValue,
+        *,
+        tooltip: str | None = None,
     ) -> tuple[bool, JsonValue]:
         if not isinstance(value, list) or len(value) not in {3, 4}:
             return False, value
@@ -3243,11 +3352,16 @@ class InspectorPanel(EditorPanel):
         if not has_alpha:
             flags |= _flag(imgui.ColorEditFlags_.no_alpha)
         del flags
-        result = ColorField(
+        field = ColorField(
             label,
             label,
             has_alpha=has_alpha,
-        ).draw(channels)
+        )
+        result = (
+            field.draw(channels)
+            if tooltip is None
+            else field.draw(channels, tooltip=tooltip)
+        )
         changed = result.changed
         channels = result.value
         if not changed:

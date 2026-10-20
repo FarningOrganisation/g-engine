@@ -42,16 +42,28 @@ class PropertyField(ABC, Generic[Value]):
         self.maximum_width = maximum_width
         self.minimum_width = minimum_width
 
-    def draw(self, value: Value) -> FieldResult[Value]:
+    def draw(
+        self,
+        value: Value,
+        *,
+        tooltip: str | None = None,
+    ) -> FieldResult[Value]:
         start_x = imgui.get_cursor_pos_x()
         label_column_width, width = self._layout_widths()
+        label_hovered = False
         if self.label:
-            self._draw_label(start_x, label_column_width)
+            label_hovered = self._draw_label(
+                start_x,
+                label_column_width,
+            )
         imgui.set_next_item_width(width)
         changed, result = self._draw_value(
             f"##property-{self.identifier}",
             value,
         )
+        value_hovered = imgui.is_item_hovered()
+        if tooltip and (label_hovered or value_hovered):
+            imgui.set_tooltip(tooltip)
         return FieldResult(changed, result)
 
     def _layout_widths(self) -> tuple[float, float]:
@@ -69,15 +81,21 @@ class PropertyField(ABC, Generic[Value]):
         )
         return label_column_width, value_width
 
-    def _draw_label(self, start_x: float, label_column_width: float) -> None:
+    def _draw_label(
+        self,
+        start_x: float,
+        label_column_width: float,
+    ) -> bool:
         imgui.align_text_to_frame_padding()
         imgui.text(self.label)
+        hovered = imgui.is_item_hovered()
         imgui.same_line()
         imgui.set_cursor_pos_x(
             start_x
             + label_column_width
             + imgui.get_style().item_spacing.x
         )
+        return hovered
 
     @abstractmethod
     def _draw_value(

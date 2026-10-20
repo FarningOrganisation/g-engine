@@ -18,6 +18,7 @@ from threading import RLock, Thread
 from time import monotonic
 import traceback
 from typing import Any, TextIO, cast
+import webbrowser
 
 import pyglet
 from pyglet import gl
@@ -53,6 +54,7 @@ from g.presentation import ScalingMode, presentation_rect
 from g.resources import Color, clamp_texture_edges
 from g.timing import FixedStepAccumulator
 from g.tilemap import TileCell, TileFlags
+from g.validation import ValidationPurpose, validate_project
 from imgui_bundle import (
     icons_fontawesome_6,
     imguizmo,  # pyright: ignore[reportMissingModuleSource]
@@ -70,6 +72,13 @@ from .panel_support import (
     TileCollisionDrag,
 )
 from .prefab import PREFAB_SUFFIX
+from .preferences import (
+    EditorPreferences,
+    ThemePreference,
+    editor_config_directory,
+    load_editor_preferences,
+    resolve_theme,
+)
 from .component_tools import ComponentToolsPanel
 from .collider_edit import (
     apply_geometry,
@@ -120,6 +129,9 @@ __all__ = [
     "run_editor",
     "walk_object_records",
 ]
+
+_DOCUMENTATION_URL = "https://farningorganisation.github.io/g-engine/"
+_FARNING_URL = "https://www.farning.de"
 
 
 @dataclass
@@ -1228,6 +1240,9 @@ class ImGuiEditor(
         modules: tuple[str, ...] = (),
         *,
         visible: bool = True,
+        start_hidden: bool = False,
+        preferences: EditorPreferences | None = None,
+        preferences_path: Path | None = None,
     ) -> None:
         pyglet.options.dpi_scaling = "stretch"
         resolved_root = (asset_root or Path.cwd()).resolve()
@@ -1248,7 +1263,7 @@ class ImGuiEditor(
             caption="g Editor",
             resizable=True,
             vsync=True,
-            visible=visible,
+            visible=visible and not start_hidden,
             file_drops=True,
         )
         self._closed = False
@@ -1257,12 +1272,28 @@ class ImGuiEditor(
         imgui.create_context()
         configure_fonts()
         self._console_font = configure_console_font()
-        configure_style()
+        self._preferences_path = (
+            preferences_path
+            if preferences_path is not None
+            else (
+                editor_config_directory() / "settings.json"
+                if visible
+                else None
+            )
+        )
+        self._preferences = preferences or (
+            load_editor_preferences(self._preferences_path)
+            if self._preferences_path is not None
+            else EditorPreferences(theme="dark")
+        )
+        self._theme_preference = self._preferences.theme
+        self._theme = resolve_theme(self._theme_preference)
+        configure_style(self._theme)
         io = imgui.get_io()
         io.config_flags |= _flag(imgui.ConfigFlags_.docking_enable)
         self._layout_file: Path | None = None
         if visible:
-            config_directory = Path.home() / ".g-editor"
+            config_directory = editor_config_directory()
             config_directory.mkdir(parents=True, exist_ok=True)
             self._layout_file = config_directory / "imgui.ini"
             io.set_ini_filename(str(self._layout_file))
@@ -1911,6 +1942,14 @@ class ImGuiEditor(
                 and self._export_thread.is_alive()
             )
             if imgui.menu_item(
+                "Validate Project",
+                "",
+                False,
+                not building,
+            )[0]:
+                self._validate_project("project")
+            imgui.separator()
+            if imgui.menu_item(
                 "Export Game...",
                 "",
                 False,
@@ -1918,7 +1957,81 @@ class ImGuiEditor(
             )[0]:
                 self._open_export_dialog()
             imgui.end_menu()
+        if imgui.begin_menu("Window"):
+            if imgui.begin_menu("Theme"):
+                for preference, label in (
+                    ("system", "System"),
+                    ("light", "Light"),
+                    ("dark", "Dark"),
+                ):
+                    if imgui.menu_item(
+                        label,
+                        "",
+                        self._theme_preference == preference,
+                    )[0]:
+                        self._set_theme(cast(ThemePreference, preference))
+                imgui.end_menu()
+            imgui.end_menu()
+        if imgui.begin_menu("Help"):
+            if imgui.menu_item("Documentation", "", False)[0]:
+                self._open_external_url(
+                    _DOCUMENTATION_URL,
+                    "documentation",
+                )
+            if imgui.menu_item("Farning Website", "", False)[0]:
+                self._open_external_url(_FARNING_URL, "Farning website")
+            imgui.end_menu()
         imgui.end_main_menu_bar()
+
+    def _validate_project(
+        self,
+        purpose: ValidationPurpose,
+    ) -> bool:
+        project = self.project or ProjectConfig.create(
+            self.state.asset_root
+        )
+        filename = self.state.filename
+        if filename is None:
+            filename = project.root / "__open_scene__.scene.json"
+        report = validate_project(
+            project,
+            purpose=purpose,
+            document_overrides={filename: self.state.document},
+            import_scripts=False,
+        )
+        if report.is_valid:
+            self.state.error = None
+            self.state.status = "Project validation passed"
+            return True
+        message = report.format()
+        self.state.error = message
+        self.state.status = (
+            f"Project validation found {len(report.issues)} error"
+            f"{'' if len(report.issues) == 1 else 's'}"
+        )
+        print(message, file=sys.stderr)
+        return False
+
+    def _set_theme(self, preference: ThemePreference) -> None:
+        self._theme_preference = preference
+        self._theme = resolve_theme(preference)
+        self._preferences.theme = preference
+        configure_style(self._theme)
+        if self._preferences_path is None:
+            return
+        try:
+            self._preferences.save(self._preferences_path)
+        except OSError as error:
+            self.state.error = f"Could not save editor settings: {error}"
+
+    def _open_external_url(self, url: str, label: str) -> None:
+        try:
+            opened = webbrowser.open(url)
+        except webbrowser.Error as error:
+            self.state.error = f"Could not open {label}: {error}"
+            return
+        if not opened:
+            self.state.error = f"Could not open {label}: no browser accepted the URL"
 
     def _undo(self) -> None:
         if self.preview.mode != "edit":
@@ -2380,8 +2493,9 @@ class ImGuiEditor(
             ):
                 if not playing:
                     self._reload_changed_scripts()
-                self.preview.set_mode("edit" if playing else "play")
-                self._frame_rate.reset()
+                if playing or self._validate_project("preview"):
+                    self.preview.set_mode("edit" if playing else "play")
+                    self._frame_rate.reset()
             imgui.same_line()
             imgui.text_disabled(
                 (
@@ -5685,11 +5799,23 @@ def run_editor(
         os.chdir(scene_path.parent)
     for module in modules:
         import_module(module)
-    editor = ImGuiEditor(
-        scene_path,
-        resolved_asset_root,
-        modules,
-    )
+    preferences_path = editor_config_directory() / "settings.json"
+    preferences = load_editor_preferences(preferences_path)
+    from .splash import EditorSplash, center_window
+
+    with EditorSplash(resolve_theme(preferences.theme)) as splash:
+        editor = ImGuiEditor(
+            scene_path,
+            resolved_asset_root,
+            modules,
+            start_hidden=True,
+            preferences=preferences,
+            preferences_path=preferences_path,
+        )
+        splash.finish()
+    center_window(editor.window)
+    editor.window.set_visible(True)
+    editor.window.activate()
     return editor.run()
 
 

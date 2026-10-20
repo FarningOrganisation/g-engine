@@ -172,6 +172,13 @@ from .project import (
 	ProjectImportError,
 	ProjectNetworkConfig,
 )
+from .validation import (
+	ProjectValidationError,
+	ValidationIssue,
+	ValidationReport,
+	require_valid_project,
+	validate_project,
+)
 from .presentation import (
 	SCALING_MODES,
 	PresentationRect,
@@ -339,6 +346,8 @@ __all__ = [
 	"instantiate_prefab",
 	"PolygonRenderer",
 	"TileRenderer",
+	"ValidationIssue",
+	"ValidationReport",
 	"PostProcess",
 	"PostProcessPipeline",
 	"PresentationRect",
@@ -351,6 +360,7 @@ __all__ = [
 	"ProjectFormatError",
 	"ProjectImportError",
 	"ProjectNetworkConfig",
+	"ProjectValidationError",
 	"RectRenderer",
 	"Renderer",
 	"RepeatingImageRenderer",
@@ -358,6 +368,7 @@ __all__ = [
 	"Repeat",
 	"ResourceBundle",
 	"ResourceManager",
+	"require_valid_project",
 	"Scene",
 	"SceneLayer",
 	"SceneLayers",
@@ -415,6 +426,7 @@ __all__ = [
 	"create_stateful_sprite",
 	"create_text",
 	"create_triangle",
+	"validate_project",
 	"TriangleRenderer",
 	"Vec2",
 	"CatmullRomSpline",

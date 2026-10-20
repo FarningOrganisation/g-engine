@@ -135,18 +135,23 @@ repository's settings; adding the workflow does not enable hosting by itself.
 Validation should run before preview and export and should report actionable
 errors for:
 
-- [ ] Missing images, fonts, audio, scenes, prefabs, and shader files
-- [ ] Invalid script modules
-- [ ] Unsupported serialized object or component types
-- [ ] Broken object and prefab references
-- [ ] Invalid startup scenes
-- [ ] Invalid project display or export settings
-- [ ] Assets outside the project root
-- [ ] Platform-specific export limitations
+- [x] Missing images, fonts, audio, scenes, prefabs, and shader files
+- [x] Invalid script modules
+- [x] Unsupported serialized object or component types
+- [x] Broken object and prefab references
+- [x] Invalid startup scenes
+- [x] Invalid project display or export settings
+- [x] Assets outside the project root
+- [x] Platform-specific export limitations
 
 Where practical, validation should collect multiple independent errors instead
 of stopping at the first one. It should be available from both the editor and
 a command-line entry point.
+
+Project validation is implemented by `g.validation`. The editor runs it before
+Play and export and exposes **Project > Validate Project**. The `g-validate`
+command supports preview/export purposes, explicit desktop targets, JSON
+output, and a static mode that does not import project scripts.
 
 ### 5. Add continuous integration
 

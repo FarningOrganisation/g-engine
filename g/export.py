@@ -8,8 +8,8 @@ import shutil
 import subprocess
 import sys
 
-from .persistence import SceneDocument, SceneFormatError
 from .project import ProjectConfig, ProjectFormatError
+from .validation import validate_project
 
 
 _EXCLUDED_NAMES = {
@@ -53,60 +53,10 @@ class ExportResult:
 def validate_export_project(
     project: ProjectConfig,
 ) -> Path:
-    export = project.export
-    if not export.startup_scene:
-        raise ExportError("choose a startup scene before exporting")
-    if any(
-        character in export.name
-        for character in '<>:"/\\|?*\0'
-    ):
-        raise ExportError(
-            "export name contains characters that are invalid in filenames"
-        )
-    startup_scene = _project_path(
-        project,
-        export.startup_scene,
-        "startup scene",
-    )
-    if not startup_scene.is_file():
-        raise ExportError(
-            f"startup scene does not exist: {export.startup_scene}"
-        )
-    try:
-        SceneDocument.read(startup_scene)
-    except SceneFormatError as error:
-        raise ExportError(
-            f"startup scene is invalid: {error}"
-        ) from error
-    if project.network.enabled and export.server_startup_scene:
-        server_startup_scene = _project_path(
-            project,
-            export.server_startup_scene,
-            "server startup scene",
-        )
-        if not server_startup_scene.is_file():
-            raise ExportError(
-                "server startup scene does not exist: "
-                f"{export.server_startup_scene}"
-            )
-        try:
-            SceneDocument.read(server_startup_scene)
-        except SceneFormatError as error:
-            raise ExportError(
-                f"server startup scene is invalid: {error}"
-            ) from error
-    if export.icon:
-        icon = _project_path(project, export.icon, "export icon")
-        if not icon.is_file():
-            raise ExportError(f"export icon does not exist: {export.icon}")
-    for module in (
-        *project.script_modules,
-        *export.hidden_imports,
-        *export.collect_packages,
-    ):
-        if any(not part.isidentifier() for part in module.split(".")):
-            raise ExportError(f"invalid Python module name: {module!r}")
-    return startup_scene
+    report = validate_project(project, purpose="export")
+    if not report.is_valid:
+        raise ExportError(report.format())
+    return (project.root / project.export.startup_scene).resolve()
 
 
 def prepare_export(
@@ -279,21 +229,6 @@ def _ensure_pyinstaller(python: Path) -> None:
             "PyInstaller is not installed in the project environment. "
             f"Run: {python} -m pip install 'pyinstaller>=6,<7'"
         )
-
-
-def _project_path(
-    project: ProjectConfig,
-    relative: str,
-    label: str,
-) -> Path:
-    path = (project.root / relative).resolve()
-    try:
-        path.relative_to(project.root)
-    except ValueError:
-        raise ExportError(
-            f"{label} must be inside the project directory"
-        ) from None
-    return path
 
 
 def _replace_directory(path: Path) -> None:
