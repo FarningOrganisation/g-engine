@@ -1,0 +1,39 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.venv/
+venv/
+env/
+build/
+dist/
+site/
+.g-export/
+.g-editor-trash-*/
+
+# Local machine and editor state.
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+imgui.ini
+*.log
+
+# Local credentials and environment configuration.
+.env
+.env.*
+!.env.example
+!.env.template
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Unrelated checkout and fonts without project redistribution rights.
+/bashcrawl/
+/g_editor/assets/fonts/Aptos/

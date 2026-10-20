@@ -1,0 +1,70 @@
+{
+  "format": "g.particle-effect",
+  "version": 1,
+  "emitters": [
+    {
+      "name": "Oil",
+      "enabled": true,
+      "capacity": 480,
+      "duration": null,
+      "loop": true,
+      "warmup": 0.0,
+      "rate": 0.0,
+      "bursts": [],
+      "lifetime": [
+        6.0,
+        9.0
+      ],
+      "speed": [
+        0.0,
+        0.0
+      ],
+      "direction": 270.0,
+      "spread": 130.0,
+      "shape": {
+        "type": "circle",
+        "radius": 2.0,
+        "edge_only": false
+      },
+      "motion": {
+        "gravity": [
+          0.0,
+          0.0
+        ],
+        "linear_drag": 0.0
+      },
+      "appearance": {
+        "image": null,
+        "size": [
+          12.0,
+          18.0
+        ],
+        "end_size": [
+          14.0,
+          20.0
+        ],
+        "color": [
+          22,
+          24,
+          30,
+          70
+        ],
+        "end_color": [
+          22,
+          24,
+          30,
+          0
+        ],
+        "initial_rotation": [
+          0.0,
+          360.0
+        ],
+        "angular_velocity": [
+          0.0,
+          0.0
+        ],
+        "blend_mode": "alpha"
+      }
+    }
+  ]
+}

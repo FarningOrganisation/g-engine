@@ -1,0 +1,98 @@
+{
+  "format": "g.prefab",
+  "version": 2,
+  "prefab_id": "754abc9d-d3ac-454f-940c-0a59716bfebf",
+  "revision": 6,
+  "kind": "game_object",
+  "template": {
+    "id": "3324a77d-d925-4b0d-8c1e-b52270c30ea7",
+    "type": "g.game_object",
+    "name": "cone_straight",
+    "enabled": true,
+    "visible": true,
+    "z_index": 3,
+    "render_behind_parent": false,
+    "offset_x": 0,
+    "offset_y": 0,
+    "scale_x": 1,
+    "scale_y": 1,
+    "opacity": 255,
+    "transform": {
+      "position": {
+        "$vec2": [
+          576.0,
+          192.0
+        ]
+      },
+      "rotation": 0,
+      "scale": [
+        0.5,
+        0.5
+      ]
+    },
+    "speed": {
+      "$vec2": [
+        0,
+        0
+      ]
+    },
+    "properties": {},
+    "components": [
+      {
+        "type": "g.sprite_renderer",
+        "properties": {
+          "image": "kenney_racing-pack/PNG/Objects/cone_straight.png",
+          "opacity": 255,
+          "visible": true,
+          "screen_space": false,
+          "enabled": true
+        },
+        "template_id": "e2d71ae8-b170-4624-a363-1dcf07a86007"
+      },
+      {
+        "type": "g.collider",
+        "properties": {
+          "shape": "box",
+          "width": 44.583220597023,
+          "height": 43.79366944648359,
+          "enabled": true,
+          "elasticity": 0.0,
+          "density": 2.799999952316284,
+          "offset_x": -0.20838970148849967,
+          "offset_y": -0.10316527675820453,
+          "friction": 27.399999618530273
+        },
+        "template_id": "f816f7d0-6eff-470e-ade2-55c990a298f9"
+      },
+      {
+        "type": "g.physics_body",
+        "properties": {
+          "body_type": "dynamic",
+          "velocity": {
+            "$vec2": [
+              0.0,
+              0.0
+            ]
+          },
+          "angular_velocity": 0.0,
+          "gravity_scale": 0.0,
+          "fixed_rotation": false,
+          "categories": 4294967295,
+          "mask": 4294967295,
+          "group": 0,
+          "enabled": true
+        },
+        "template_id": "0b8d9dfd-948c-42e5-b4cb-59002524bd99"
+      },
+      {
+        "type": "cone.Cone",
+        "properties": {
+          "enabled": true
+        },
+        "template_id": "6e7a57e4-fb7d-49b3-8603-17acb80568fe"
+      }
+    ],
+    "children": [],
+    "template_id": "d22b27a6-e632-439b-9018-cd2c7afcce96"
+  }
+}

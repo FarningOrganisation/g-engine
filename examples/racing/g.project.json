@@ -1,0 +1,41 @@
+{
+  "format": "g.project",
+  "version": 1,
+  "game": {
+    "width": 1920,
+    "height": 1080,
+    "grid_cell_size": 128,
+    "scaling": "fit",
+    "matte_color": [
+      30,
+      30,
+      36,
+      255
+    ],
+    "resizable": true,
+    "fullscreen": false
+  },
+  "script_modules": [
+    "car",
+    "cone",
+    "race"
+  ],
+  "export": {
+    "name": "NetworkRacer",
+    "version": "0.1.0",
+    "startup_scene": "menu.scene.json",
+    "icon": null,
+    "hidden_imports": [],
+    "collect_packages": [],
+    "server_startup_scene": "racing.scene.json"
+  },
+  "network": {
+    "enabled": true,
+    "endpoint": "ws://127.0.0.1:7777",
+    "bind": "127.0.0.1",
+    "port": 7777,
+    "max_clients": 8,
+    "snapshot_hz": 30,
+    "auto_connect": false
+  }
+}

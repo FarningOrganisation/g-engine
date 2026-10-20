@@ -1,0 +1,323 @@
+{
+  "format": "g.prefab",
+  "version": 2,
+  "prefab_id": "racing-car",
+  "revision": 1,
+  "kind": "game_object",
+  "template": {
+    "id": "ef64ee9b-c5dc-4183-9af1-d0176d6b5696",
+    "type": "g.game_object",
+    "name": "Race Car",
+    "enabled": true,
+    "visible": true,
+    "z_index": 22,
+    "offset_x": 0,
+    "offset_y": 0,
+    "scale_x": 1,
+    "scale_y": 1,
+    "opacity": 255,
+    "transform": {
+      "position": {
+        "$vec2": [
+          0.0,
+          0.0
+        ]
+      },
+      "rotation": 90.0,
+      "scale": [
+        1.0,
+        1.0
+      ]
+    },
+    "speed": {
+      "$vec2": [
+        0,
+        0
+      ]
+    },
+    "properties": {},
+    "components": [
+      {
+        "type": "g.sprite_renderer",
+        "properties": {
+          "image": "kenney_racing-pack/PNG/Cars/car_blue_small_1.png",
+          "opacity": 255,
+          "visible": true,
+          "screen_space": false,
+          "enabled": true
+        },
+        "template_id": "1066c347-0d33-487b-a62d-22d7b6e44259"
+      },
+      {
+        "type": "g.collider",
+        "properties": {
+          "shape": "box",
+          "width": 39.40517364238109,
+          "height": 70.0,
+          "enabled": true,
+          "offset_x": 0.2974131788094567,
+          "offset_y": 0.0
+        },
+        "template_id": "aa2e0bcd-7a91-49a8-8443-f647c3c28754"
+      },
+      {
+        "type": "g.physics_body",
+        "properties": {
+          "body_type": "dynamic",
+          "velocity": {
+            "$vec2": [
+              0.0,
+              0.0
+            ]
+          },
+          "angular_velocity": 0.0,
+          "gravity_scale": 0.0,
+          "fixed_rotation": false,
+          "categories": 4294967295,
+          "mask": 4294967295,
+          "group": 0,
+          "enabled": true
+        },
+        "template_id": "ef77eae7-0f31-47a6-bdb4-d9e08f5b4e64"
+      },
+      {
+        "type": "car.Car",
+        "properties": {
+          "max_forward_speed": 600.0,
+          "max_reverse_speed": 200.0,
+          "acceleration": 150.0,
+          "braking": 900.0,
+          "coasting": 180.0,
+          "lateral_grip": 720.0,
+          "steering_speed": 150.0,
+          "enabled": true
+        },
+        "template_id": "70656e69-fa1d-4486-b56e-3f4d6e264b9b"
+      },
+      {
+        "type": "car.CarController",
+        "properties": {
+          "enabled": true
+        },
+        "template_id": "6579cd4c-f7b9-4d83-bfaf-4def6c746890"
+      },
+      {
+        "type": "g.camera_follow",
+        "properties": {
+          "offset_x": 0.0,
+          "offset_y": 0.0,
+          "smoothing": 0.0,
+          "enabled": true
+        },
+        "template_id": "b05fc5ff-6e6c-41a7-9b12-972c4b42f607"
+      },
+      {
+        "type": "car.CarEffects",
+        "properties": {
+          "minimum_drift_speed": 90.0,
+          "minimum_lateral_speed": 45.0,
+          "minimum_slip": 0.18,
+          "oil_grip": 0.0,
+          "oil_duration": 6.0,
+          "enabled": true
+        },
+        "template_id": "d543e7cf-aea6-46eb-b207-6411f75d1d6b"
+      },
+      {
+        "type": "g.networked_game_object",
+        "properties": {
+          "synchronization": "automatic",
+          "sync_scale": false,
+          "remote_smoothing": "interpolate",
+          "owner_client_number": 0,
+          "owner_disconnect": "keep",
+          "enabled": true
+        },
+        "template_id": "3351acca-3c92-49ed-89e5-f684a3b2a2e7"
+      }
+    ],
+    "children": [
+      {
+        "id": "f346a643-3707-49ed-9a5a-cc1349d96b91",
+        "type": "g.game_object",
+        "name": "Rear Left Effects",
+        "enabled": true,
+        "visible": true,
+        "render_behind_parent": true,
+        "z_index": 21,
+        "offset_x": 0,
+        "offset_y": 0,
+        "scale_x": 1,
+        "scale_y": 1,
+        "opacity": 255,
+        "transform": {
+          "position": {
+            "$vec2": [
+              -13,
+              -28
+            ]
+          },
+          "rotation": 0,
+          "scale": [
+            1,
+            1
+          ]
+        },
+        "speed": {
+          "$vec2": [
+            0,
+            0
+          ]
+        },
+        "properties": {},
+        "components": [
+          {
+            "type": "g.trail_renderer",
+            "properties": {
+              "image": "kenney_racing-pack/PNG/Objects/skidmark_short_1.png",
+              "emitting": false,
+              "offset": [
+                0,
+                0
+              ],
+              "width": 5.0,
+              "minimum_distance": 3.0,
+              "lifetime": 14.0,
+              "color": [
+                28,
+                28,
+                30,
+                185
+              ],
+              "fade": true,
+              "max_segments": 1400,
+              "visible": true,
+              "screen_space": false,
+              "enabled": true
+            },
+            "template_id": "c8bf269e-3850-4fae-9d42-d49f7d606b0f"
+          },
+          {
+            "type": "g.particle_effect",
+            "properties": {
+              "effect": "Drift Sparks.particle.json",
+              "autoplay": false,
+              "simulation_space": "world",
+              "seed": 101,
+              "visible": true,
+              "screen_space": false,
+              "enabled": true
+            },
+            "template_id": "526382ef-d3e7-4a00-9107-0ac0d8caf0c3"
+          },
+          {
+            "type": "g.particle_effect",
+            "properties": {
+              "effect": "Oil Splash.particle.json",
+              "autoplay": false,
+              "simulation_space": "world",
+              "seed": 201,
+              "visible": true,
+              "screen_space": false,
+              "enabled": true
+            },
+            "template_id": "07a1dd51-36fa-45ea-90cd-378452303d3f"
+          }
+        ],
+        "children": [],
+        "template_id": "a8630a9f-9c68-4a63-b814-c312ca8e0951"
+      },
+      {
+        "id": "75bed215-8224-414f-b09d-2d542da78675",
+        "type": "g.game_object",
+        "name": "Rear Right Effects",
+        "enabled": true,
+        "visible": true,
+        "render_behind_parent": true,
+        "z_index": 20,
+        "offset_x": 0,
+        "offset_y": 0,
+        "scale_x": 1,
+        "scale_y": 1,
+        "opacity": 255,
+        "transform": {
+          "position": {
+            "$vec2": [
+              13,
+              -28
+            ]
+          },
+          "rotation": 0,
+          "scale": [
+            1,
+            1
+          ]
+        },
+        "speed": {
+          "$vec2": [
+            0,
+            0
+          ]
+        },
+        "properties": {},
+        "components": [
+          {
+            "type": "g.trail_renderer",
+            "properties": {
+              "image": "kenney_racing-pack/PNG/Objects/skidmark_short_1.png",
+              "emitting": false,
+              "offset": [
+                0,
+                0
+              ],
+              "width": 5.0,
+              "minimum_distance": 3.0,
+              "lifetime": 14.0,
+              "color": [
+                28,
+                28,
+                30,
+                185
+              ],
+              "fade": true,
+              "max_segments": 1400,
+              "visible": true,
+              "screen_space": false,
+              "enabled": true
+            },
+            "template_id": "fa3e1814-8b39-4ac6-bdfa-75470273225a"
+          },
+          {
+            "type": "g.particle_effect",
+            "properties": {
+              "effect": "Drift Sparks.particle.json",
+              "autoplay": false,
+              "simulation_space": "world",
+              "seed": 102,
+              "visible": true,
+              "screen_space": false,
+              "enabled": true
+            },
+            "template_id": "35ec54a4-b186-42d7-8e8a-abd5c9378e16"
+          },
+          {
+            "type": "g.particle_effect",
+            "properties": {
+              "effect": "Oil Splash.particle.json",
+              "autoplay": false,
+              "simulation_space": "world",
+              "seed": 202,
+              "visible": true,
+              "screen_space": false,
+              "enabled": true
+            },
+            "template_id": "6053e3f5-1ff2-4972-8b6e-05490219f62f"
+          }
+        ],
+        "children": [],
+        "template_id": "165ee148-e2b7-48d2-ab84-02f9a18be1b2"
+      }
+    ],
+    "template_id": "6edb8db5-4bcf-4b03-b70e-2be7bfd671da"
+  }
+}

@@ -1,0 +1,2 @@
+include mkdocs.yml
+recursive-include docs *.md *.py

@@ -1,0 +1,68 @@
+{
+  "format": "g.particle-effect",
+  "version": 1,
+  "emitters": [
+    {
+      "name": "Sparks",
+      "enabled": true,
+      "capacity": 240,
+      "duration": null,
+      "loop": true,
+      "warmup": 0.0,
+      "rate": 75.0,
+      "bursts": [],
+      "lifetime": [
+        0.18,
+        0.48
+      ],
+      "speed": [
+        65.0,
+        170.0
+      ],
+      "direction": 270.0,
+      "spread": 80.0,
+      "shape": {
+        "type": "point"
+      },
+      "motion": {
+        "gravity": [
+          0.0,
+          -210.0
+        ],
+        "linear_drag": 0.08
+      },
+      "appearance": {
+        "image": null,
+        "size": [
+          6.0,
+          9.0
+        ],
+        "end_size": [
+          0.0,
+          1.0
+        ],
+        "color": [
+          255,
+          135,
+          20,
+          255
+        ],
+        "end_color": [
+          210,
+          35,
+          2,
+          0
+        ],
+        "initial_rotation": [
+          0.0,
+          360.0
+        ],
+        "angular_velocity": [
+          -180.0,
+          180.0
+        ],
+        "blend_mode": "alpha"
+      }
+    }
+  ]
+}

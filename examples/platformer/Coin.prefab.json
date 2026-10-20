@@ -1,0 +1,115 @@
+{
+  "format": "g.prefab",
+  "version": 2,
+  "prefab_id": "61a53a23-ec44-4866-8436-1d8b427f559e",
+  "revision": 1,
+  "kind": "game_object",
+  "template": {
+    "id": "ce7ad208-546a-493b-a3bc-a32a11c846e5",
+    "type": "g.game_object",
+    "name": "Coin",
+    "enabled": true,
+    "visible": true,
+    "z_index": 0,
+    "offset_x": 0,
+    "offset_y": 0,
+    "scale_x": 1,
+    "scale_y": 1,
+    "opacity": 255,
+    "transform": {
+      "position": {
+        "$vec2": [
+          2193.1849019949473,
+          868.7911096269206
+        ]
+      },
+      "rotation": 0,
+      "scale": [
+        1,
+        1
+      ]
+    },
+    "speed": {
+      "$vec2": [
+        0,
+        0
+      ]
+    },
+    "properties": {
+    },
+    "components": [
+      {
+        "type": "g.sprite_renderer",
+        "properties": {
+          "image": "kenney_platformer-pack-remastered/PNG/Items/coinGold.png",
+          "opacity": 255,
+          "visible": true,
+          "screen_space": false,
+          "enabled": true
+        },
+        "template_id": "5a0c3c93-25b8-47fa-9747-faf2dd233dc0"
+      },
+      {
+        "type": "g.collider",
+        "properties": {
+          "offset_x": 0.0,
+          "offset_y": 0.0,
+          "density": 1.0,
+          "friction": 0.7,
+          "elasticity": 0.0,
+          "mode": "sensor",
+          "collision_type": 0,
+          "override_collision_filtering": false,
+          "categories": 4294967295,
+          "mask": 4294967295,
+          "group": 0,
+          "radius": 34.29999923706055,
+          "enabled": true,
+          "shape": "circle",
+          "width": 64,
+          "height": 64,
+          "radius_x": 32,
+          "radius_y": 16,
+          "points": [
+            [
+              -32,
+              -32
+            ],
+            [
+              32,
+              -32
+            ],
+            [
+              32,
+              32
+            ],
+            [
+              -32,
+              32
+            ]
+          ]
+        },
+        "template_id": "06bba783-ae5d-4668-a0d6-fa58fe47dfbc"
+      },
+      {
+        "type": "coin.Coin",
+        "properties": {
+          "enabled": true
+        },
+        "template_id": "58c7a968-966d-4ae0-a86d-eb6d276d3361"
+      },
+      {
+        "type": "g.area",
+        "properties": {
+          "collider_index": 0,
+          "enabled": true
+        },
+        "template_id": "e3c944d7-8a8f-4670-b282-aa5a04017824"
+      }
+    ],
+    "children": [
+
+    ],
+    "template_id": "634d4c44-b345-4fce-b5fe-30b1c8262bc2"
+  }
+}

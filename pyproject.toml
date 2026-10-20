@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "g-engine"
+version = "0.1.0"
+description = "A small component-based 2D game engine built on pyglet"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Games/Entertainment",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+dependencies = [
+    "pyglet>=2.1,<3",
+    "pymunk>=6.9,<8",
+    "fonttools>=4,<5",
+    "websockets>=15,<16",
+]
+
+[project.optional-dependencies]
+docs = [
+    "mkdocs>=1.6,<2",
+    "mkdocs-material>=9.6,<10",
+    "mkdocstrings-python>=1.18,<2",
+    "mkdocs-gen-files>=0.5,<1",
+    "mkdocs-literate-nav>=0.6,<1",
+]
+editor = ["imgui-bundle[opengl,pyglet]>=1.92,<2"]
+export = ["pyinstaller>=6,<7"]
+all = [
+    "imgui-bundle[opengl,pyglet]>=1.92,<2",
+    "pyinstaller>=6,<7",
+]
+
+[project.scripts]
+g-editor = "g_editor:main"
+
+[tool.setuptools]
+include-package-data = false
+
+[tool.setuptools.packages.find]
+include = ["g", "g.*", "g_editor", "g_editor.*"]
+
+[tool.setuptools.package-data]
+g = ["py.typed", "doc/*.md"]
+g_editor = [
+    "assets/fonts/Inter/OFL.txt",
+    "assets/fonts/Inter/static/Inter_18pt-Regular.ttf",
+    "assets/fonts/JetBrains_Mono/OFL.txt",
+    "assets/fonts/JetBrains_Mono/static/JetBrainsMono-Regular.ttf",
+]

@@ -1,0 +1,501 @@
+{
+  "format": "g.scene",
+  "version": 1,
+  "settings": {
+    "background": [
+      18,
+      24,
+      34
+    ],
+    "size": [
+      1920,
+      1080
+    ],
+    "grid_cell_size": 32,
+    "camera": {
+      "position": {
+        "$vec2": [
+          960.0,
+          540.0
+        ]
+      },
+      "zoom": 1,
+      "rotation": 0
+    },
+    "physics": {
+      "gravity": [
+        0.0,
+        0.0
+      ],
+      "damping": 1.0
+    },
+    "presentation": {
+      "scaling": "fit",
+      "matte_color": [
+        0,
+        0,
+        0,
+        255
+      ],
+      "resizable": true,
+      "fullscreen": false
+    }
+  },
+  "layers": [
+    {
+      "id": "default",
+      "name": "Default",
+      "visible": true,
+      "enabled": true,
+      "default": true,
+      "type": "object",
+      "objects": [
+        {
+          "id": "race-menu",
+          "type": "g.game_object",
+          "name": "Race Menu",
+          "enabled": true,
+          "visible": true,
+          "z_index": 0,
+          "render_behind_parent": false,
+          "transform": {
+            "position": {
+              "$vec2": [
+                0,
+                0
+              ]
+            },
+            "rotation": 0,
+            "scale": [
+              1,
+              1
+            ]
+          },
+          "speed": {
+            "$vec2": [
+              0.0,
+              0.0
+            ]
+          },
+          "properties": {},
+          "components": [
+            {
+              "type": "race.RaceMenu",
+              "properties": {
+                "enabled": true
+              }
+            }
+          ],
+          "children": []
+        }
+      ]
+    }
+  ],
+  "ui_views": [
+    {
+      "type": "ui",
+      "id": "main-menu",
+      "name": "Main Menu",
+      "startup": true,
+      "transparent": true,
+      "modal": false,
+      "pauses_below": true,
+      "pauses_scene": false,
+      "elements": [
+        {
+          "id": "d1a83738-d54e-4900-b3cd-76979d67b67c",
+          "name": "Menu Center",
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080,
+          "visible": true,
+          "enabled": true,
+          "z_index": 0,
+          "min_width": 0,
+          "min_height": 0,
+          "grow": 0,
+          "margin": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "offset_x": 0.0,
+          "offset_y": 0.0,
+          "scale_x": 1.0,
+          "scale_y": 1.0,
+          "opacity": 255,
+          "focusable": false,
+          "type": "anchor",
+          "horizontal": "center",
+          "vertical": "center",
+          "anchor_margin": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "children": [
+            {
+              "id": "f5ca40a3-4016-4017-a4a6-004f86ff00a1",
+              "name": "Menu Layout",
+              "x": 0,
+              "y": 0,
+              "width": 460,
+              "height": 450,
+              "visible": true,
+              "enabled": true,
+              "z_index": 0,
+              "min_width": 0,
+              "min_height": 0,
+              "grow": 0,
+              "margin": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "offset_x": 0.0,
+              "offset_y": 0.0,
+              "scale_x": 1.0,
+              "scale_y": 1.0,
+              "opacity": 255,
+              "focusable": false,
+              "type": "vbox",
+              "spacing": 16,
+              "alignment": "center",
+              "padding": [
+                20,
+                20,
+                20,
+                20
+              ],
+              "children": [
+                {
+                  "id": "67436bcf-5830-403b-becf-b6c719dfd714",
+                  "name": "Menu Title",
+                  "x": 0,
+                  "y": 0,
+                  "width": null,
+                  "height": 72,
+                  "visible": true,
+                  "enabled": true,
+                  "z_index": 0,
+                  "min_width": 0,
+                  "min_height": 0,
+                  "grow": 0,
+                  "margin": [
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "offset_x": 0.0,
+                  "offset_y": 0.0,
+                  "scale_x": 1.0,
+                  "scale_y": 1.0,
+                  "opacity": 255,
+                  "focusable": false,
+                  "type": "label",
+                  "text": "g Network Racer",
+                  "font": null,
+                  "font_size": 42,
+                  "color": [
+                    255,
+                    255,
+                    255
+                  ],
+                  "align": "center",
+                  "multiline": false
+                },
+                {
+                  "id": "aa586894-a0a1-4c0c-a2d9-c0379ea4016e",
+                  "name": "Menu Subtitle",
+                  "x": 0,
+                  "y": 0,
+                  "width": null,
+                  "height": 40,
+                  "visible": true,
+                  "enabled": true,
+                  "z_index": 0,
+                  "min_width": 0,
+                  "min_height": 0,
+                  "grow": 0,
+                  "margin": [
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "offset_x": 0.0,
+                  "offset_y": 0.0,
+                  "scale_x": 1.0,
+                  "scale_y": 1.0,
+                  "opacity": 255,
+                  "focusable": false,
+                  "type": "label",
+                  "text": "Choose a race mode",
+                  "font": null,
+                  "font_size": 22,
+                  "color": [
+                    255,
+                    255,
+                    255
+                  ],
+                  "align": "center",
+                  "multiline": false
+                },
+                {
+                  "id": "66a14872-fd1c-455f-b5be-f812ad89f7ef",
+                  "name": "Bots Mode",
+                  "x": 0,
+                  "y": 0,
+                  "width": 360,
+                  "height": 48,
+                  "visible": true,
+                  "enabled": true,
+                  "z_index": 0,
+                  "min_width": 0,
+                  "min_height": 0,
+                  "grow": 0,
+                  "margin": [
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "offset_x": 0.0,
+                  "offset_y": 0.0,
+                  "scale_x": 1.0,
+                  "scale_y": 1.0,
+                  "opacity": 255,
+                  "focusable": true,
+                  "type": "button",
+                  "text": "Race against 7 bots",
+                  "background": [
+                    55,
+                    65,
+                    85
+                  ],
+                  "hover": [
+                    75,
+                    90,
+                    120
+                  ],
+                  "pressed": [
+                    35,
+                    42,
+                    58
+                  ],
+                  "disabled": [
+                    65,
+                    65,
+                    65
+                  ],
+                  "text_color": [
+                    255,
+                    255,
+                    255
+                  ],
+                  "font": null,
+                  "font_size": 16
+                },
+                {
+                  "id": "224e309d-1dfd-4e86-9f9b-9624adad8963",
+                  "name": "Time Trial Mode",
+                  "x": 0,
+                  "y": 0,
+                  "width": 360,
+                  "height": 48,
+                  "visible": true,
+                  "enabled": true,
+                  "z_index": 0,
+                  "min_width": 0,
+                  "min_height": 0,
+                  "grow": 0,
+                  "margin": [
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "offset_x": 0.0,
+                  "offset_y": 0.0,
+                  "scale_x": 1.0,
+                  "scale_y": 1.0,
+                  "opacity": 255,
+                  "focusable": true,
+                  "type": "button",
+                  "text": "Time trial with best-lap ghost",
+                  "background": [
+                    55,
+                    65,
+                    85
+                  ],
+                  "hover": [
+                    75,
+                    90,
+                    120
+                  ],
+                  "pressed": [
+                    35,
+                    42,
+                    58
+                  ],
+                  "disabled": [
+                    65,
+                    65,
+                    65
+                  ],
+                  "text_color": [
+                    255,
+                    255,
+                    255
+                  ],
+                  "font": null,
+                  "font_size": 16
+                },
+                {
+                  "id": "309e67cd-6a9b-4fb2-9a79-fa5b684872e2",
+                  "name": "Server Label",
+                  "x": 0,
+                  "y": 0,
+                  "width": null,
+                  "height": 30,
+                  "visible": true,
+                  "enabled": true,
+                  "z_index": 0,
+                  "min_width": 0,
+                  "min_height": 0,
+                  "grow": 0,
+                  "margin": [
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "offset_x": 0.0,
+                  "offset_y": 0.0,
+                  "scale_x": 1.0,
+                  "scale_y": 1.0,
+                  "opacity": 255,
+                  "focusable": false,
+                  "type": "label",
+                  "text": "Multiplayer server IP or hostname",
+                  "font": null,
+                  "font_size": 12,
+                  "color": [
+                    255,
+                    255,
+                    255
+                  ],
+                  "align": "center",
+                  "multiline": false
+                },
+                {
+                  "id": "280d63e3-ab9e-4c59-85f5-ad17035dc93f",
+                  "name": "Server Address",
+                  "x": 0,
+                  "y": 0,
+                  "width": 360,
+                  "height": 28,
+                  "visible": true,
+                  "enabled": true,
+                  "z_index": 0,
+                  "min_width": 0,
+                  "min_height": 0,
+                  "grow": 0,
+                  "margin": [
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "offset_x": 0.0,
+                  "offset_y": 0.0,
+                  "scale_x": 1.0,
+                  "scale_y": 1.0,
+                  "opacity": 255,
+                  "focusable": true,
+                  "type": "text_input",
+                  "text": "127.0.0.1:7777",
+                  "color": [
+                    255,
+                    255,
+                    255
+                  ],
+                  "text_color": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "caret_color": [
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                {
+                  "id": "d2d3dcd5-65fd-4041-a7fe-2903469738f0",
+                  "name": "Multiplayer Mode",
+                  "x": 0,
+                  "y": 0,
+                  "width": 360,
+                  "height": 48,
+                  "visible": true,
+                  "enabled": true,
+                  "z_index": 0,
+                  "min_width": 0,
+                  "min_height": 0,
+                  "grow": 0,
+                  "margin": [
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "offset_x": 0.0,
+                  "offset_y": 0.0,
+                  "scale_x": 1.0,
+                  "scale_y": 1.0,
+                  "opacity": 255,
+                  "focusable": true,
+                  "type": "button",
+                  "text": "Race multiplayer",
+                  "background": [
+                    55,
+                    65,
+                    85
+                  ],
+                  "hover": [
+                    75,
+                    90,
+                    120
+                  ],
+                  "pressed": [
+                    35,
+                    42,
+                    58
+                  ],
+                  "disabled": [
+                    65,
+                    65,
+                    65
+                  ],
+                  "text_color": [
+                    255,
+                    255,
+                    255
+                  ],
+                  "font": null,
+                  "font_size": 16
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

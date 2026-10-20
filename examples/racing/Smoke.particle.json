@@ -1,0 +1,70 @@
+{
+  "format": "g.particle-effect",
+  "version": 1,
+  "emitters": [
+    {
+      "name": "Smoke",
+      "enabled": true,
+      "capacity": 500,
+      "duration": null,
+      "loop": true,
+      "warmup": 0.0,
+      "rate": 28.0,
+      "bursts": [],
+      "lifetime": [
+        1.8,
+        3.2
+      ],
+      "speed": [
+        12.0,
+        28.0
+      ],
+      "direction": 90.0,
+      "spread": 35.0,
+      "shape": {
+        "type": "circle",
+        "radius": 6.0,
+        "edge_only": false
+      },
+      "motion": {
+        "gravity": [
+          0.0,
+          10.0
+        ],
+        "linear_drag": 0.18
+      },
+      "appearance": {
+        "image": null,
+        "size": [
+          10.0,
+          18.0
+        ],
+        "end_size": [
+          34.0,
+          58.0
+        ],
+        "color": [
+          85,
+          88,
+          94,
+          150
+        ],
+        "end_color": [
+          35,
+          38,
+          45,
+          0
+        ],
+        "initial_rotation": [
+          0.0,
+          0.0
+        ],
+        "angular_velocity": [
+          0.0,
+          0.0
+        ],
+        "blend_mode": "alpha"
+      }
+    }
+  ]
+}
