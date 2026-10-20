@@ -80,7 +80,7 @@ Projects can install a branch, tag, or commit directly from GitHub:
 
 ```bash
 python3 -m pip install \
-  "g-engine @ git+https://github.com/OWNER/REPOSITORY.git@REVISION"
+  "g-engine @ git+https://github.com/FarningOrganisation/g-engine.git@main"
 ```
 
 The distribution is named `g-engine`; Python code imports it as `g`.

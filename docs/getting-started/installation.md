@@ -49,13 +49,14 @@ python -m g_editor
 
 ## Install from GitHub
 
-Once the repository is published, replace these placeholders with its real
-owner, repository, and revision:
+Install the latest development version from `main`, including the editor:
 
 ```bash
 python -m pip install \
-  "g-engine[editor] @ git+https://github.com/OWNER/REPOSITORY.git@REVISION"
+  "g-engine[editor] @ git+https://github.com/FarningOrganisation/g-engine.git@main"
 ```
 
-This does not require a PyPI release. Pin a tag or commit for reproducible
-projects rather than relying on a moving branch.
+Omit `[editor]` for the runtime only, or use `[all]` for editor and export
+tools. This does not require a PyPI release. For reproducible projects, replace
+`main` with a release tag or full commit hash rather than relying on a moving
+branch.
