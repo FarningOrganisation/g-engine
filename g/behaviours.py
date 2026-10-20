@@ -631,3 +631,233 @@ class AnimationBuilder:
             loop=loop,
             on_complete=on_complete,
         )
+
+
+class AnimationGroupHandle:
+    """Control and inspect animations started together on multiple objects."""
+
+    def __init__(
+        self,
+        handles: tuple[AnimationHandle, ...],
+        game_objects: tuple[GameObject, ...],
+        on_complete: (
+            Callable[[tuple[GameObject, ...]], None] | None
+        ),
+    ) -> None:
+        """Initialize a group handle from active object animation handles."""
+        if not handles or len(handles) != len(game_objects):
+            raise ValueError(
+                "animation group handles and objects must be non-empty "
+                "and have matching lengths"
+            )
+        self._handles = handles
+        self._game_objects = game_objects
+        self._on_complete = on_complete
+        self._completed: set[int] = set()
+        self._completion_reported = False
+
+    @property
+    def handles(self) -> tuple[AnimationHandle, ...]:
+        """Individual object animation handles in target order."""
+        return self._handles
+
+    @property
+    def status(self) -> BehaviourStatus:
+        """Aggregate status of all animations in the group."""
+        if any(
+            handle.status is BehaviourStatus.RUNNING
+            for handle in self._handles
+        ):
+            return BehaviourStatus.RUNNING
+        if all(handle.completed for handle in self._handles):
+            return BehaviourStatus.SUCCESS
+        return BehaviourStatus.CANCELLED
+
+    @property
+    def running(self) -> bool:
+        """Whether at least one group animation is actively updating."""
+        return any(handle.running for handle in self._handles)
+
+    @property
+    def paused(self) -> bool:
+        """Whether every still-active animation is paused."""
+        active = [
+            handle
+            for handle in self._handles
+            if handle.status is BehaviourStatus.RUNNING
+        ]
+        return bool(active) and all(handle.paused for handle in active)
+
+    @property
+    def completed(self) -> bool:
+        """Whether every animation completed successfully."""
+        return all(handle.completed for handle in self._handles)
+
+    @property
+    def cancelled(self) -> bool:
+        """Whether a group animation was cancelled and none remain active."""
+        return (
+            not any(
+                handle.status is BehaviourStatus.RUNNING
+                for handle in self._handles
+            )
+            and any(handle.cancelled for handle in self._handles)
+        )
+
+    def pause(self) -> None:
+        """Pause every active animation in the group."""
+        for handle in self._handles:
+            handle.pause()
+
+    def resume(self) -> None:
+        """Resume every paused animation in the group."""
+        for handle in self._handles:
+            handle.resume()
+
+    def cancel(self) -> None:
+        """Cancel every active animation in the group."""
+        for handle in self._handles:
+            handle.cancel()
+
+    def restart(self) -> None:
+        """Reset and restart every animation in the group."""
+        self._completed.clear()
+        self._completion_reported = False
+        for handle in self._handles:
+            handle.restart()
+
+    def _complete(self, index: int) -> None:
+        self._completed.add(index)
+        if (
+            not self._completion_reported
+            and self._on_complete is not None
+            and len(self._completed) == len(self._handles)
+        ):
+            self._completion_reported = True
+            self._on_complete(self._game_objects)
+
+
+class AnimationGroupBuilder:
+    """Build identical animation steps for multiple game objects."""
+
+    def __init__(
+        self,
+        game_objects: tuple[GameObject, ...],
+    ) -> None:
+        """Initialize builders for unique, live game objects."""
+        if not game_objects:
+            raise ValueError("animate_together requires at least one object")
+        if len({id(game_object) for game_object in game_objects}) != len(
+            game_objects
+        ):
+            raise ValueError("animate_together objects must be unique")
+        deleted = next(
+            (
+                game_object
+                for game_object in game_objects
+                if game_object.is_deleted
+            ),
+            None,
+        )
+        if deleted is not None:
+            raise ValueError(
+                "animate_together cannot target a deleted object"
+            )
+        self._game_objects = game_objects
+        self._builders = tuple(
+            AnimationBuilder(game_object)
+            for game_object in game_objects
+        )
+
+    def to(
+        self,
+        duration: float,
+        easing: Easing = Ease.linear,
+        **properties: AnimatableValue,
+    ) -> AnimationGroupBuilder:
+        """Append the same tween step for every target object."""
+        for builder in self._builders:
+            builder.to(duration, easing, **properties)
+        return self
+
+    def wait(self, duration: float) -> AnimationGroupBuilder:
+        """Append the same delay for every target object."""
+        for builder in self._builders:
+            builder.wait(duration)
+        return self
+
+    def call(
+        self,
+        callback: Callable[[GameObject], None],
+    ) -> AnimationGroupBuilder:
+        """Append a callback invoked once for each target object."""
+        for builder in self._builders:
+            builder.call(callback)
+        return self
+
+    def repeat(
+        self,
+        times: int | None = None,
+    ) -> AnimationGroupBuilder:
+        """Repeat all accumulated steps for every target object."""
+        for builder in self._builders:
+            builder.repeat(times)
+        return self
+
+    def start(
+        self,
+        *,
+        loop: bool = False,
+        on_complete: (
+            Callable[[tuple[GameObject, ...]], None] | None
+        ) = None,
+    ) -> AnimationGroupHandle:
+        """Start all object animations and return one group control handle."""
+        behaviours = tuple(
+            builder._build() for builder in self._builders
+        )
+        group: AnimationGroupHandle | None = None
+
+        def completion(index: int) -> Callable[[GameObject], None]:
+            def complete(_: GameObject) -> None:
+                if group is not None:
+                    group._complete(index)
+
+            return complete
+
+        from .components import BehaviourRunner
+
+        handles: list[AnimationHandle] = []
+        for index, (game_object, behaviour) in enumerate(
+            zip(self._game_objects, behaviours, strict=True)
+        ):
+            runner = game_object.get_component(BehaviourRunner)
+            if runner is None:
+                runner = game_object.add_component(BehaviourRunner())
+            handles.append(runner.play_animation(
+                behaviour,
+                loop=loop,
+                on_complete=completion(index),
+            ))
+        group = AnimationGroupHandle(
+            tuple(handles),
+            self._game_objects,
+            on_complete,
+        )
+        return group
+
+
+def animate_together(
+    *game_objects: GameObject,
+) -> AnimationGroupBuilder:
+    """Create one fluent animation builder for multiple game objects."""
+    from .nodes import GameObject
+
+    if any(
+        not isinstance(game_object, GameObject)
+        for game_object in game_objects
+    ):
+        raise TypeError(
+            "animate_together targets must be game objects"
+        )
+    return AnimationGroupBuilder(game_objects)

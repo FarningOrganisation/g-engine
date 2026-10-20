@@ -10,6 +10,7 @@ from g import (
     ShapeStyle,
     Vec2,
     Wait,
+    animate_together,
     create_rect,
 )
 from g.nodes import GameObject
@@ -195,6 +196,89 @@ class AnimationTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "same game object"):
             self.obj.animate().parallel(other.animate().to(1, x=10))
+
+    def test_animate_together_updates_multiple_objects(self) -> None:
+        other = self.game.add(
+            create_rect(20, 0, (255, 255, 255), 10, 10)
+        )
+
+        handle = animate_together(self.obj, other).to(
+            1,
+            opacity=0,
+        ).start()
+
+        self.assertTrue(self.obj.is_animating)
+        self.assertTrue(other.is_animating)
+        self.game._update(0.5)
+        self.assertEqual(
+            self.obj.require_component(RectRenderer).opacity,
+            128,
+        )
+        self.assertEqual(
+            other.require_component(RectRenderer).opacity,
+            128,
+        )
+        self.assertTrue(handle.running)
+        self.game._update(0.5)
+        self.assertTrue(handle.completed)
+        self.assertFalse(self.obj.is_animating)
+        self.assertFalse(other.is_animating)
+
+    def test_animation_group_handle_controls_every_object(self) -> None:
+        other = self.game.add(GameObject())
+        handle = animate_together(self.obj, other).to(
+            1,
+            x=100,
+        ).start()
+
+        self.game._update(0.25)
+        handle.pause()
+        self.assertTrue(handle.paused)
+        self.game._update(0.5)
+        self.assertEqual((self.obj.x, other.x), (25, 25))
+
+        handle.resume()
+        self.game._update(0.75)
+        self.assertTrue(handle.completed)
+        handle.restart()
+        self.assertTrue(handle.running)
+        self.assertTrue(self.obj.is_animating)
+        self.assertTrue(other.is_animating)
+        handle.cancel()
+        self.assertTrue(handle.cancelled)
+        self.assertFalse(self.obj.is_animating)
+        self.assertFalse(other.is_animating)
+
+    def test_animation_group_completion_runs_once(self) -> None:
+        other = self.game.add(GameObject())
+        on_complete = Mock()
+
+        handle = animate_together(self.obj, other).to(
+            1,
+            x=100,
+        ).start(on_complete=on_complete)
+
+        self.game._update(1)
+        self.assertTrue(handle.completed)
+        on_complete.assert_called_once_with((self.obj, other))
+        self.game._update(1)
+        on_complete.assert_called_once_with((self.obj, other))
+        handle.restart()
+        self.game._update(1)
+        self.assertEqual(on_complete.call_count, 2)
+
+    def test_animate_together_validates_targets(self) -> None:
+        with self.assertRaisesRegex(ValueError, "at least one"):
+            animate_together()
+        with self.assertRaisesRegex(ValueError, "unique"):
+            animate_together(self.obj, self.obj)
+        with self.assertRaisesRegex(TypeError, "game objects"):
+            animate_together(self.obj, object())  # type: ignore[arg-type]
+
+        other = self.game.add(GameObject())
+        other.delete()
+        with self.assertRaisesRegex(ValueError, "deleted"):
+            animate_together(self.obj, other)
 
     def test_animation_interpolates_vec2_position(self) -> None:
         self.obj.position = Vec2(10, 20)

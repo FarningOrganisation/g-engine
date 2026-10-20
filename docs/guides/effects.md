@@ -20,6 +20,24 @@ object animation replaces the previous object animation; GUI widgets use
 named animation channels instead. `is_animating` remains true while an object
 animation is paused and becomes false when it completes or is cancelled.
 
+Use `animate_together()` when multiple game objects should follow the same
+steps:
+
+```python
+handle = g.animate_together(title_text, instruction_text).to(
+    1,
+    g.Ease.out_quad,
+    opacity=0,
+).start()
+
+handle.pause()
+handle.resume()
+```
+
+The returned group handle controls every object animation and completes only
+after all of them complete. Starting another animation on one of the objects
+still replaces that object's active animation.
+
 See the [behaviours API](../api/behaviours.md) for sequencing and cancellation
 semantics.
 

@@ -5,6 +5,8 @@ __version__ = "0.1.0"
 from . import colors
 from .behaviours import (
 	AnimationBuilder,
+	AnimationGroupBuilder,
+	AnimationGroupHandle,
 	AnimationHandle,
 	Behaviour,
 	BehaviourStatus,
@@ -16,6 +18,7 @@ from .behaviours import (
 	SetState,
 	Tween,
 	Wait,
+	animate_together,
 )
 from .camera import Camera
 from .components import (
@@ -271,6 +274,8 @@ __all__ = [
 	"WidgetVisual",
 	"Animation",
 	"AnimationBuilder",
+	"AnimationGroupBuilder",
+	"AnimationGroupHandle",
 	"AnimationHandle",
 	"Area",
 	"AxisBinding",
@@ -426,6 +431,7 @@ __all__ = [
 	"create_stateful_sprite",
 	"create_text",
 	"create_triangle",
+	"animate_together",
 	"validate_project",
 	"TriangleRenderer",
 	"Vec2",
