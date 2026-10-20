@@ -462,19 +462,6 @@ def new_object_record(
                 },
             }
         )
-    elif kind == "sprite" and image_size is not None:
-        width, height = image_size
-        components.append(
-            {
-                "type": "g.collider",
-                "properties": {
-                    "shape": "box",
-                    "width": width,
-                    "height": height,
-                    "enabled": True,
-                },
-            }
-        )
     return {
         "id": str(uuid4()),
         "type": "g.game_object",
@@ -4970,7 +4957,6 @@ class EditorState:
             raise ValueError("select an object with a SpriteRenderer first")
         relative, loaded = self._load_project_image(image)
         renderer_found = False
-        collider_found = False
         for component in components:
             if not isinstance(component, dict):
                 continue
@@ -4980,24 +4966,8 @@ class EditorState:
             if component.get("type") == "g.sprite_renderer":
                 properties["image"] = relative
                 renderer_found = True
-            elif component.get("type") == "g.collider" and properties.get("shape", "box") == "box":
-                properties["width"] = loaded.width
-                properties["height"] = loaded.height
-                collider_found = True
         if not renderer_found:
             raise SceneFormatError("sprite has no sprite renderer")
-        if not collider_found:
-            components.append(
-                {
-                    "type": "g.collider",
-                    "properties": {
-                        "shape": "box",
-                        "width": loaded.width,
-                        "height": loaded.height,
-                        "enabled": True,
-                    },
-                }
-            )
         record["name"] = Path(relative).stem or "Sprite"
         self.mark_changed(f"Changed sprite image to {relative}")
 

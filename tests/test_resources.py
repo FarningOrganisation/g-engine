@@ -3,7 +3,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, Mock, call, patch
 
-from g import Game, Image, ResourceManager, Sound
+from g import Game, Image, ResourceManager, Sound, TextureFilter
 from g.resources import clamp_texture_edges
 from pyglet import gl
 
@@ -98,6 +98,46 @@ class ResourceManagerTests(unittest.TestCase):
         self.assertIs(first, second)
         self.assertIs(first, third)
         image_type.assert_called_once_with(Path("assets/player.png").resolve())
+
+    @patch("g.resources.Image")
+    def test_image_filtering_has_distinct_cached_variants(
+        self,
+        image_type: Mock,
+    ) -> None:
+        image_type.side_effect = [Mock(), Mock()]
+        manager = ResourceManager()
+
+        linear = manager.load_image("player.png")
+        nearest = manager.load_image(
+            "player.png",
+            filtering=TextureFilter.NEAREST,
+        )
+
+        self.assertIsNot(linear, nearest)
+        self.assertEqual(image_type.call_count, 2)
+        image_type.assert_any_call(Path("player.png").resolve())
+        image_type.assert_any_call(
+            Path("player.png").resolve(),
+            filtering=TextureFilter.NEAREST,
+        )
+
+    @patch("g.resources.Image")
+    def test_game_configures_default_texture_filter(
+        self,
+        image_type: Mock,
+    ) -> None:
+        game = Game(
+            10,
+            10,
+            texture_filter=TextureFilter.NEAREST,
+        )
+
+        game.resources.load_image("player.png")
+
+        image_type.assert_called_once_with(
+            Path("player.png").resolve(),
+            filtering=TextureFilter.NEAREST,
+        )
 
     @patch("g.resources.Sound")
     def test_load_sound_caches_resource(self, sound_type: Mock) -> None:

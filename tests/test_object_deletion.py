@@ -13,7 +13,9 @@ class ObjectDeletionTests(unittest.TestCase):
     def test_delete_detaches_nested_subtree_and_releases_physics_and_drawables(self) -> None:
         parent = self.scene.add(GameObject())
         group = parent.add_child(Node())
-        sprite = create_sprite(Image.solid(8, 8, (255, 0, 0)), 0, 0)
+        sprite = create_sprite(
+            Image.solid(8, 8, (255, 0, 0)), 0, 0, collider=True
+        )
         group.add_child(sprite)
         child = sprite.add_child(create_sprite(None, 0, 0))
         self.scene._prepare_subtree(parent, parent.require_layer())
@@ -44,7 +46,14 @@ class ObjectDeletionTests(unittest.TestCase):
         self.assertIsNone(shape.space)
 
     def test_root_deletion_releases_dynamic_body(self) -> None:
-        sprite = self.scene.add(create_sprite(Image.solid(8, 8, (255, 0, 0)), 0, 0))
+        sprite = self.scene.add(
+            create_sprite(
+                Image.solid(8, 8, (255, 0, 0)),
+                0,
+                0,
+                collider=True,
+            )
+        )
         body = sprite.add_component(PhysicsBody())
         self.scene.physics.refresh()
         self.assertIn(body._body, self.scene.physics._space.bodies)
@@ -54,7 +63,7 @@ class ObjectDeletionTests(unittest.TestCase):
 
     def test_delete_from_area_callback_stops_remaining_handlers_and_preserves_other_objects(self) -> None:
         coin = self.scene.add(create_area_box(0, 0, 20, 20))
-        player = self.scene.add(create_sprite(None, 0, 0))
+        player = self.scene.add(create_sprite(None, 0, 0, collider=True))
         area = coin.require_component(Area)
         second = Mock()
         area.on_enter(lambda other: coin.delete())
@@ -111,8 +120,15 @@ class ObjectDeletionTests(unittest.TestCase):
         self.assertIsNone(component.owner)
 
     def test_collision_callback_deletion_does_not_retain_stale_pairs(self) -> None:
-        first = self.scene.add(create_sprite(Image.solid(10, 10, (255, 0, 0)), 0, 0))
-        second = self.scene.add(create_sprite(None, 0, 0))
+        first = self.scene.add(
+            create_sprite(
+                Image.solid(10, 10, (255, 0, 0)),
+                0,
+                0,
+                collider=True,
+            )
+        )
+        second = self.scene.add(create_sprite(None, 0, 0, collider=True))
         second.collider.width = second.collider.height = 10
         first.on_collision(lambda other: first.delete())
         self.scene._update(0)

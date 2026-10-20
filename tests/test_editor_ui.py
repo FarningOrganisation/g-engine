@@ -1609,7 +1609,7 @@ class EditorStateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "finite"):
             self.state.set_scene_camera_value("rotation", float("inf"))
 
-    def test_empty_sprite_gets_image_and_collider_later(self) -> None:
+    def test_empty_sprite_gets_image_without_implicit_collider(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             pyglet.image.SolidColorImagePattern(
@@ -1633,15 +1633,9 @@ class EditorStateTests(unittest.TestCase):
 
         self.assertEqual(renderer_properties["image"], "hero.png")
         self.assertEqual(record["name"], "hero")
-        collider = components[1]
-        assert isinstance(collider, dict)
-        self.assertEqual(collider["type"], "g.collider")
-        self.assertEqual(
-            collider["properties"],
-            {"shape": "box", "width": 24, "height": 32, "enabled": True},
-        )
+        self.assertEqual(len(components), 1)
 
-    def test_sprite_uses_selected_project_image_and_updates_collider(
+    def test_sprite_image_change_does_not_resize_explicit_collider(
         self,
     ) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1663,6 +1657,7 @@ class EditorStateTests(unittest.TestCase):
                 y=20,
                 at_root=True,
             )
+            state.add_component("g.collider")
             state.set_selected_sprite_image(second)
 
         self.assertEqual(record["type"], "g.game_object")
@@ -1688,7 +1683,7 @@ class EditorStateTests(unittest.TestCase):
                 collider_properties["width"],
                 collider_properties["height"],
             ),
-            (48, 64),
+            (64.0, 64.0),
         )
 
     def test_deleting_nested_selection_removes_canonical_record(self) -> None:

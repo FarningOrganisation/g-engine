@@ -78,6 +78,7 @@ ball = game.add_circle(
     (255, 255, 255),
     10,
     z_index=1,
+    collider=True,
 )
 center_line = game.add_line(
     (game.pixel_width / 2, 0),

@@ -45,7 +45,12 @@ class SpriteRendererTests(unittest.TestCase):
         self.assertTrue(renderer.drawable.visible)
 
     def test_flips_compose_with_world_scale_without_changing_transform_or_collider(self) -> None:
-        sprite = create_sprite(Image.solid(8, 6, (255, 0, 0)), 10, 20)
+        sprite = create_sprite(
+            Image.solid(8, 6, (255, 0, 0)),
+            10,
+            20,
+            collider=True,
+        )
         renderer = sprite.require_component(SpriteRenderer)
         collider = sprite.require_component(Collider)
         self.assertEqual(collider.shape, "box")
@@ -264,7 +269,13 @@ class SpriteAnimatorTests(unittest.TestCase):
 
     def test_static_and_empty_states_do_not_resize_colliders(self) -> None:
         large = Image.solid(32, 24, (255, 0, 0))
-        sprite = create_stateful_sprite({"idle": self.idle, "large": large, "hidden": None}, "idle", 0, 0)
+        sprite = create_stateful_sprite(
+            {"idle": self.idle, "large": large, "hidden": None},
+            "idle",
+            0,
+            0,
+            collider=True,
+        )
         collider = sprite.require_component(Collider)
         self.assertEqual(collider.shape, "box")
         renderer = sprite.require_component(SpriteRenderer)

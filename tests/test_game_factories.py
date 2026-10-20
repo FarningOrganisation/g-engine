@@ -1,6 +1,8 @@
 import unittest
+from unittest.mock import patch
 
 from g import (
+    Collider,
     SpriteAnimator,
     CircleRenderer,
     Game,
@@ -90,6 +92,50 @@ class GameFactoryTests(unittest.TestCase):
         self.assert_added(sprite)
         self.assert_added(text)
         self.assert_added(stateful)
+
+    def test_visual_factories_only_add_colliders_when_requested(self) -> None:
+        image = Image.solid(8, 6, (255, 255, 255))
+
+        visuals = (
+            self.game.add_circle(10, 10, (255, 255, 255), 5),
+            self.game.add_rect(20, 20, (255, 255, 255), 8, 6),
+            self.game.add_sprite(30, 30, image),
+        )
+        physical = (
+            self.game.add_circle(
+                40, 40, (255, 255, 255), 5, collider=True
+            ),
+            self.game.add_rect(
+                50, 50, (255, 255, 255), 8, 6, collider=True
+            ),
+            self.game.add_sprite(60, 60, image, collider=True),
+        )
+
+        self.assertTrue(all(item.collider is None for item in visuals))
+        self.assertTrue(
+            all(isinstance(item.collider, Collider) for item in physical)
+        )
+
+    def test_sprite_helpers_resolve_resource_paths(self) -> None:
+        image = Image.solid(8, 6, (255, 255, 255))
+        with patch.object(
+            self.game.resources,
+            "load_image",
+            return_value=image,
+        ) as load_image:
+            sprite = self.game.add_sprite(
+                50,
+                60,
+                "player.png",
+                collider=True,
+            )
+
+        load_image.assert_called_once_with("player.png", filtering=None)
+        self.assertIs(
+            sprite.require_component(SpriteRenderer).image,
+            image,
+        )
+        self.assertIsInstance(sprite.collider, Collider)
 
     def test_stateful_game_object_helper(self) -> None:
         idle = create_rect(10, 20, (255, 255, 255), 10, 10)

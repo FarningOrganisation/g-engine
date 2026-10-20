@@ -86,6 +86,7 @@ class ShooterScene(Scene):
             PLAYER_COLOR,
             radius=10,
             z_index=3,
+            collider=True,
         )
         self.gun = create_rect(15, 0, GUN_COLOR, 25, 7, z_index=4)
         self.player.add_child(self.gun)
@@ -125,6 +126,7 @@ class ShooterScene(Scene):
                 CELL_SIZE - 2,
                 CELL_SIZE - 2,
                 z_index=1,
+                collider=True,
             )
             wall.add_component(NavigationObstacle())
             self.walls.append(wall)
@@ -139,6 +141,7 @@ class ShooterScene(Scene):
                 21,
                 21,
                 z_index=2,
+                collider=True,
             )
             agent = body.add_component(NavigationAgent(ENEMY_SPEED))
             self.add(body)
@@ -235,6 +238,7 @@ class ShooterScene(Scene):
             BULLET_COLOR,
             4,
             z_index=5,
+            collider=True,
         )
         self.add(bullet)
         self.bullets.append(Bullet(bullet, direction_x, direction_y))

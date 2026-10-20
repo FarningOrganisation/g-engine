@@ -4009,6 +4009,12 @@ class ImGuiEditorTests(unittest.TestCase):
             self.assertIsNotNone(runtime)
             assert runtime is not None
             self.assertIs(type(runtime), GameObject)
+            self.assertIsNone(runtime.collider)
+            renderer = runtime.require_component(SpriteRenderer)
+            self.assertEqual(
+                (renderer.drawable.width, renderer.drawable.height),
+                (40, 50),
+            )
             self.assertEqual(
                 self.editor.preview.pick(400, 300),
                 record["id"],

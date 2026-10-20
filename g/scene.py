@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import nullcontext
+from os import PathLike
 from typing import TYPE_CHECKING, Any, TypeVar
 from uuid import uuid4
 from pathlib import Path
@@ -30,7 +31,7 @@ from .objects import (
     create_triangle,
 )
 from .physics import CollisionContact, PhysicsWorld
-from .resources import Color, Font, Image, ImageSource
+from .resources import Color, Font, Image, ImageSource, TextureFilter
 from .math import Vec2
 from .timing import SceneTime
 
@@ -748,11 +749,20 @@ class Scene:
         *,
         z_index: int | None = None,
         style: ShapeStyle | None = None,
+        collider: bool = False,
     ) -> GameObject:
         """Create and add a circle centered at ``(x, y)`` in virtual pixels."""
         target, order = self._placement(layer, z_index)
         return self.add(
-            create_circle(x, y, color, radius, z_index=order or 0, style=style),
+            create_circle(
+                x,
+                y,
+                color,
+                radius,
+                z_index=order or 0,
+                style=style,
+                collider=collider,
+            ),
             layer=target,
         )
 
@@ -768,6 +778,7 @@ class Scene:
         *,
         z_index: int | None = None,
         style: ShapeStyle | None = None,
+        collider: bool = False,
     ) -> GameObject:
         """Create and add a rectangle centered at ``(x, y)``; angle is degrees."""
         target, order = self._placement(layer, z_index)
@@ -781,6 +792,7 @@ class Scene:
                 angle,
                 z_index=order or 0,
                 style=style,
+                collider=collider,
             ),
             layer=target,
         )
@@ -789,16 +801,29 @@ class Scene:
         self,
         x: float,
         y: float,
-        image: ImageSource,
+        image: ImageSource | str | PathLike[str],
         angle: float = 0,
         layer: LayerSelector | int | None = None,
         *,
         z_index: int | None = None,
+        filtering: TextureFilter | None = None,
+        collider: bool = False,
     ) -> GameObject:
         """Create and add a sprite at a virtual-pixel position."""
         target, order = self._placement(layer, z_index)
+        if isinstance(image, (str, PathLike)):
+            image = self.resources.load_image(image, filtering=filtering)
+        elif filtering is not None:
+            raise ValueError("filtering can only be set when loading an image path")
         return self.add(
-            create_sprite(image, x, y, angle, z_index=order or 0),
+            create_sprite(
+                image,
+                x,
+                y,
+                angle,
+                z_index=order or 0,
+                collider=collider,
+            ),
             layer=target,
         )
 
@@ -861,6 +886,7 @@ class Scene:
         layer: LayerSelector | int | None = None,
         *,
         z_index: int | None = None,
+        collider: bool = False,
     ) -> GameObject:
         """Create and add a sprite with named image or animation states."""
         target, order = self._placement(layer, z_index)
@@ -872,6 +898,7 @@ class Scene:
                 y,
                 angle,
                 z_index=order or 0,
+                collider=collider,
             ),
             layer=target,
         )

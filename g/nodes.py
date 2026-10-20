@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
-from math import cos, radians, sin
+from math import atan2, cos, degrees, isfinite, radians, sin
 from typing import TYPE_CHECKING, Any, TypeAlias, TypeVar
 
 from .behaviours import AnimationBuilder, Behaviour
@@ -38,6 +38,8 @@ class Node:
         rotation (float): Local rotation in degrees.
         scale_x (float): Local horizontal scale.
         scale_y (float): Local vertical scale.
+        scale (float | Vec2 | tuple[float, float] | None): Optional combined
+            uniform or non-uniform scale.
         visible (bool): Whether this node is visible.
         enabled (bool): Whether this node is enabled.
         z_index (int): Drawing order within its layer.
@@ -55,6 +57,7 @@ class Node:
         rotation: float = 0,
         scale_x: float = 1,
         scale_y: float = 1,
+        scale: float | Vec2 | tuple[float, float] | None = None,
         visible: bool = True,
         enabled: bool = True,
         z_index: int = 0,
@@ -65,6 +68,13 @@ class Node:
             if z_index != 0:
                 raise ValueError("use either z_index or the legacy layer argument")
             z_index = layer
+        if scale is not None and (scale_x != 1 or scale_y != 1):
+            raise ValueError("use either scale or scale_x and scale_y")
+        if scale is not None:
+            if isinstance(scale, (int, float)):
+                scale_x = scale_y = scale
+            else:
+                scale_x, scale_y = scale
         self._position = Vec2(x, y)
         self.rotation = rotation
         self.scale_x = scale_x
@@ -120,6 +130,19 @@ class Node:
     def angle(self, value: float) -> None:
         """Set local rotation in degrees."""
         self.rotation = value
+
+    @property
+    def scale(self) -> Vec2:
+        """Local horizontal and vertical scale as a vector snapshot."""
+        return Vec2(self.scale_x, self.scale_y)
+
+    @scale.setter
+    def scale(self, value: float | Vec2 | tuple[float, float]) -> None:
+        """Set uniform scale from a number or non-uniform scale from a pair."""
+        if isinstance(value, (int, float)):
+            self.scale_x = self.scale_y = value
+        else:
+            self.scale_x, self.scale_y = value
 
     @property
     def parent(self) -> Node | None:
@@ -292,6 +315,72 @@ class Node:
         if rotation is not None:
             self.world_rotation = rotation
 
+    @staticmethod
+    def _target_position(
+        target: Node | Vec2 | tuple[float, float],
+    ) -> Vec2:
+        return target.world_position if isinstance(target, Node) else Vec2(*target)
+
+    def distance_to(
+        self,
+        target: Node | Vec2 | tuple[float, float],
+    ) -> float:
+        """Return the world-space distance to a node or point."""
+        return self.world_position.distance(self._target_position(target))
+
+    def direction_to(
+        self,
+        target: Node | Vec2 | tuple[float, float],
+    ) -> Vec2:
+        """Return the normalized world-space direction to a node or point."""
+        offset = self._target_position(target) - self.world_position
+        return offset.normalize() if offset else Vec2.zero()
+
+    def angle_to(
+        self,
+        target: Node | Vec2 | tuple[float, float],
+    ) -> float:
+        """Return the clockwise world-space angle to a node or point in degrees."""
+        offset = self._target_position(target) - self.world_position
+        return degrees(atan2(-offset.y, offset.x))
+
+    def look_at(
+        self,
+        target: Node | Vec2 | tuple[float, float],
+        *,
+        offset: float = 0,
+    ) -> None:
+        """Rotate in world space to face a node or point."""
+        self.world_rotation = self.angle_to(target) + offset
+
+    def move_towards(
+        self,
+        target: Node | Vec2 | tuple[float, float],
+        max_distance: float,
+    ) -> None:
+        """Move in world space toward a node or point without overshooting."""
+        self.world_position = self.world_position.move_towards(
+            self._target_position(target),
+            max_distance,
+        )
+
+    def rotate_towards(
+        self,
+        target: Node | Vec2 | tuple[float, float],
+        max_degrees: float,
+        *,
+        offset: float = 0,
+    ) -> None:
+        """Rotate in world space toward a target along the shortest arc."""
+        if not isfinite(max_degrees) or max_degrees < 0:
+            raise ValueError("max_degrees must be finite and non-negative")
+        target_rotation = self.angle_to(target) + offset
+        difference = (target_rotation - self.world_rotation + 180) % 360 - 180
+        if abs(difference) <= max_degrees:
+            self.world_rotation = target_rotation
+        else:
+            self.world_rotation += max_degrees if difference > 0 else -max_degrees
+
     @property
     def enabled_in_hierarchy(self) -> bool:
         """Whether this node and all of its ancestors are enabled."""
@@ -346,6 +435,8 @@ class GameObject(Node):
         rotation (float): Local rotation in degrees.
         scale_x (float): Local horizontal scale.
         scale_y (float): Local vertical scale.
+        scale (float | Vec2 | tuple[float, float] | None): Optional combined
+            uniform or non-uniform scale.
         visible (bool): Whether the object is visible.
         enabled (bool): Whether the object is enabled.
         z_index (int): Drawing order within its layer.
@@ -367,6 +458,7 @@ class GameObject(Node):
         rotation: float = 0,
         scale_x: float = 1,
         scale_y: float = 1,
+        scale: float | Vec2 | tuple[float, float] | None = None,
         visible: bool = True,
         enabled: bool = True,
         z_index: int = 0,
@@ -379,6 +471,7 @@ class GameObject(Node):
             rotation=rotation,
             scale_x=scale_x,
             scale_y=scale_y,
+            scale=scale,
             visible=visible,
             enabled=enabled,
             z_index=z_index,
@@ -409,6 +502,33 @@ class GameObject(Node):
     def update(self, delta_time: float) -> None:
         """Move by speed in local pixels per second before component updates."""
         self.position += self.speed * delta_time
+
+    def face_towards(
+        self,
+        target: Node | Vec2 | tuple[float, float],
+        *,
+        offset: float = 0,
+        keep_upright: bool = True,
+    ) -> None:
+        """Aim at a world-space target and optionally mirror the sprite upright.
+
+        The sprite is mirrored visually without changing this object's scale,
+        collider, or child transforms.
+
+        Args:
+            target: Node or world-space point to face.
+            offset: Rotation offset in degrees.
+            keep_upright: Mirror the sprite vertically while aiming left.
+
+        Raises:
+            LookupError: If this object has no ``SpriteRenderer``.
+        """
+        from .components import SpriteRenderer
+
+        direction = self.direction_to(target)
+        self.look_at(target, offset=offset)
+        renderer = self.require_component(SpriteRenderer)
+        renderer.flip_y = keep_upright and direction.x < 0
 
     @property
     def components(self) -> tuple[Component, ...]:
@@ -1366,6 +1486,7 @@ class GameObject(Node):
             or self.get_component(PlatformerMotor) is not None
         ):
             raise ValueError("game object already has a movement motor")
+        self._ensure_renderer_collider()
         return self.add_component(
             TopDownMotor(
                 speed,
@@ -1419,6 +1540,7 @@ class GameObject(Node):
             or self.get_component(PlatformerMotor) is not None
         ):
             raise ValueError("game object already has a movement motor")
+        self._ensure_renderer_collider()
         return self.add_component(
             PlatformerMotor(
                 speed,
@@ -1435,6 +1557,38 @@ class GameObject(Node):
                 allow_double_jump=allow_double_jump,
             )
         )
+
+    def _ensure_renderer_collider(self) -> None:
+        """Add a collider inferred from this object's renderer when absent."""
+        from .components import Collider, CircleRenderer, RectRenderer, SpriteRenderer
+
+        if self.get_component(Collider) is not None:
+            return
+        circle = self.get_component(CircleRenderer)
+        rectangle = self.get_component(RectRenderer)
+        sprite = self.get_component(SpriteRenderer)
+        if circle is not None:
+            self.add_component(Collider(shape="circle", radius=circle.radius))
+        elif rectangle is not None:
+            self.add_component(
+                Collider(
+                    shape="box",
+                    width=rectangle.width,
+                    height=rectangle.height,
+                )
+            )
+        elif sprite is not None:
+            self.add_component(
+                Collider(
+                    shape="box",
+                    width=sprite.drawable.width,
+                    height=sprite.drawable.height,
+                )
+            )
+        else:
+            raise ValueError(
+                "automatic movement needs a circle or box renderer/collider"
+            )
 
     def set_state(self, state: str) -> None:
         """Set the sprite animator's state.

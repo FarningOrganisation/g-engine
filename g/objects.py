@@ -19,7 +19,7 @@ ComponentType = TypeVar("ComponentType", bound=Component)
 def create_rect(
     x: float, y: float, color: Color, width: float, height: float,
     angle: float = 0, layer: int = 0, *, z_index: int | None = None,
-    style: ShapeStyle | None = None,
+    style: ShapeStyle | None = None, collider: bool = False,
 ) -> GameObject:
     """Create a rectangle object with a renderer and box collider.
 
@@ -33,20 +33,22 @@ def create_rect(
         layer (int): Legacy alias for ``z_index``.
         z_index (int | None): Drawing order; takes precedence over ``layer``.
         style (ShapeStyle | None): Optional fill/outline styling.
+        collider (bool): Whether to add a matching solid collider.
 
     Returns:
         GameObject: A detached game object.
     """
     obj = GameObject(x, y, rotation=angle, z_index=layer if z_index is None else z_index)
     obj.add_component(RectRenderer(width, height, color, style=style))
-    obj.add_component(Collider(shape="box", width=width, height=height))
+    if collider:
+        obj.add_component(Collider(shape="box", width=width, height=height))
     return obj
 
 
 def create_circle(
     x: float, y: float, color: Color, radius: float,
     angle: float = 0, layer: int = 0, *, z_index: int | None = None,
-    style: ShapeStyle | None = None,
+    style: ShapeStyle | None = None, collider: bool = False,
 ) -> GameObject:
     """Create a circle object with a renderer and matching circle collider.
 
@@ -59,21 +61,23 @@ def create_circle(
         layer (int): Legacy alias for ``z_index``.
         z_index (int | None): Drawing order; takes precedence over ``layer``.
         style (ShapeStyle | None): Optional fill/outline styling.
+        collider (bool): Whether to add a matching solid collider.
 
     Returns:
         GameObject: A detached game object.
     """
     obj = GameObject(x, y, rotation=angle, z_index=layer if z_index is None else z_index)
     obj.add_component(CircleRenderer(radius, color, style=style))
-    obj.add_component(Collider(shape="circle", radius=radius))
+    if collider:
+        obj.add_component(Collider(shape="circle", radius=radius))
     return obj
 
 
 def create_sprite(
     image: ImageSource | None, x: float, y: float, angle: float = 0,
-    layer: int = 0, *, z_index: int | None = None,
+    layer: int = 0, *, z_index: int | None = None, collider: bool = False,
 ) -> GameObject:
-    """Create a sprite object, with a box collider sized to its image.
+    """Create a sprite object with an optional image-sized box collider.
 
     Args:
         image (ImageSource | Animation | None): Image, animation, or ``None`` for a placeholder sprite.
@@ -82,6 +86,7 @@ def create_sprite(
         angle (float): Rotation in degrees.
         layer (int): Legacy alias for ``z_index``.
         z_index (int | None): Drawing order; takes precedence over ``layer``.
+        collider (bool): Whether to add a box collider sized to the image.
 
     Returns:
         GameObject: A detached object, with an animator when ``image`` is an animation.
@@ -92,7 +97,8 @@ def create_sprite(
         animator = SpriteAnimator({"default": image})
         image = animator.states["default"].frames[0].image
     renderer = obj.add_component(SpriteRenderer(image))
-    obj.add_component(Collider(shape="box", width=renderer.drawable.width, height=renderer.drawable.height))
+    if collider:
+        obj.add_component(Collider(shape="box", width=renderer.drawable.width, height=renderer.drawable.height))
     if animator is not None:
         obj.add_component(animator)
     return obj
@@ -273,6 +279,7 @@ def create_area_circle(
 def create_stateful_sprite(
     states: Mapping[str, ImageSource | SpriteAnimation | None], initial_state: str, x: float, y: float,
     angle: float = 0, layer: int = 0, *, z_index: int | None = None,
+    collider: bool = False,
 ) -> GameObject:
     """Create a sprite object with named image or animation states.
 
@@ -284,6 +291,7 @@ def create_stateful_sprite(
         angle (float): Rotation in degrees.
         layer (int): Legacy alias for ``z_index``.
         z_index (int | None): Drawing order; takes precedence over ``layer``.
+        collider (bool): Whether to add a box collider sized to the initial image.
 
     Raises:
         ValueError: If no states are provided or the initial state is unknown.
@@ -293,7 +301,15 @@ def create_stateful_sprite(
     if initial_state not in states:
         raise ValueError(f"unknown initial state: {initial_state!r}")
     animator = SpriteAnimator(states, initial_state)
-    obj = create_sprite(animator.states[initial_state].frames[0].image, x, y, angle, layer, z_index=z_index)
+    obj = create_sprite(
+        animator.states[initial_state].frames[0].image,
+        x,
+        y,
+        angle,
+        layer,
+        z_index=z_index,
+        collider=collider,
+    )
     obj.add_component(animator)
     return obj
 

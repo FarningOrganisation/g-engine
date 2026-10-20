@@ -328,7 +328,16 @@ class PersistenceTests(unittest.TestCase):
 
     def test_round_trip_preserves_hierarchy_components_and_references(self) -> None:
         scene = self.game.scenes.current
-        parent = scene.add(create_rect(30, 40, (20, 40, 60, 200), 20, 10))
+        parent = scene.add(
+            create_rect(
+                30,
+                40,
+                (20, 40, 60, 200),
+                20,
+                10,
+                collider=True,
+            )
+        )
         parent.name = "Parent"
         parent.rotation = 15
         parent.scale_x = 2

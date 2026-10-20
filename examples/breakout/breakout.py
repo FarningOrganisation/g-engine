@@ -20,9 +20,13 @@ breakout = g.Game(800, 500)
 breakout.input.bind_axis("x", g.Key.A, g.Key.D)
 breakout.input.bind_axis("x2", g.Key.LEFT, g.Key.RIGHT)
 
-paddle = breakout.add_rect(100, 20, (255, 255, 255), 100, 20)
+paddle = breakout.add_rect(
+    100, 20, (255, 255, 255), 100, 20, collider=True
+)
 
-ball = breakout.add_circle(200, 30, (255, 255, 255), 10)
+ball = breakout.add_circle(
+    200, 30, (255, 255, 255), 10, collider=True
+)
 ball_released = False
 ball_offset_x = 0
 ball.speed = g.Vec2(0, 0)
@@ -73,7 +77,14 @@ def load_level(level: str):
             block_color = (255, 255, 255)
             if type == "E":
                 block_color = (255, 0, 0)
-            block = breakout.add_rect(100+50*x+5*x, 300 + y * 20 + 5 * y, block_color, 50, 20)
+            block = breakout.add_rect(
+                100 + 50 * x + 5 * x,
+                300 + y * 20 + 5 * y,
+                block_color,
+                50,
+                20,
+                collider=True,
+            )
             block.properties["type"] = type
             blocks.append(block)
 

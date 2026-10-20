@@ -11,7 +11,8 @@ from pyglet.math import Mat4
 
 from g import (
     Game, GameObject, Image, ObjectLayer, PASSTHROUGH_FRAGMENT_SOURCE,
-    PostProcess, RepeatingImageRenderer, SceneSerializer, Vec2, create_background,
+    PostProcess, RepeatingImageRenderer, SceneSerializer, TextureFilter, Vec2,
+    create_background,
 )
 from g.inspector import inspector_fields
 from g.resources import source_of
@@ -27,12 +28,7 @@ BLACK = (0, 0, 0, 255)
 
 def pattern_image() -> Image:
     source = pyglet.image.ImageData(2, 2, "RGBA", bytes((*RED, *GREEN, *BLUE, *YELLOW)))
-    image = Image._from_source(source)
-    texture = source.get_texture()
-    gl.glBindTexture(texture.target, texture.id)
-    gl.glTexParameteri(texture.target, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
-    gl.glTexParameteri(texture.target, gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST)
-    return image
+    return Image._from_source(source, filtering=TextureFilter.NEAREST)
 
 
 class RepeatingImageTests(unittest.TestCase):

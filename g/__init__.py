@@ -183,6 +183,7 @@ from .resources import (
 	ImageSource,
 	ResourceManager,
 	Sound,
+	TextureFilter,
 )
 from .rendering import SceneRenderer
 from .scene import (
@@ -375,6 +376,7 @@ __all__ = [
 	"StatefulGameObject",
 	"Sound",
 	"TextRenderer",
+	"TextureFilter",
 	"TrailRenderer",
 	"TimerHandle",
 	"TileAnimation",

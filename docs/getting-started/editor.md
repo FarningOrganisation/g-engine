@@ -59,4 +59,6 @@ serialization. The registration ID should remain stable after scenes use it.
     The editor's trust prompt is consent, not a sandbox.
 
 For loading and distributing the result, see
-[persistence and exporting](../guides/persistence.md).
+[persistence and exporting](../guides/persistence.md). The
+[editor reference](../guides/editor.md) covers the complete workspace,
+selection, assets, components, animation, Play mode, and export.

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from enum import Enum
 from os import PathLike
 from pathlib import Path
 from struct import unpack
@@ -17,6 +18,33 @@ from pyglet.media import Source as PygletSource
 
 
 Color: TypeAlias = tuple[int, int, int] | tuple[int, int, int, int]
+
+
+class TextureFilter(str, Enum):
+    """Texture sampling used when images are scaled."""
+
+    LINEAR = "linear"
+    NEAREST = "nearest"
+
+
+def _apply_texture_filter(
+    source: PygletImage,
+    filtering: TextureFilter,
+) -> None:
+    texture = source.get_texture()
+    value = (
+        gl.GL_NEAREST
+        if filtering is TextureFilter.NEAREST
+        else gl.GL_LINEAR
+    )
+    previous = gl.GLint()
+    gl.glGetIntegerv(gl.GL_TEXTURE_BINDING_2D, previous)
+    try:
+        gl.glBindTexture(texture.target, texture.id)
+        gl.glTexParameteri(texture.target, gl.GL_TEXTURE_MIN_FILTER, value)
+        gl.glTexParameteri(texture.target, gl.GL_TEXTURE_MAG_FILTER, value)
+    finally:
+        gl.glBindTexture(gl.GL_TEXTURE_2D, previous.value)
 
 
 class Font:
@@ -129,18 +157,21 @@ class Image:
         self,
         filename: str | PathLike[str],
         *,
+        filtering: TextureFilter = TextureFilter.LINEAR,
         presentation_enabled: bool = True,
     ) -> None:
         """Load an image or read its metadata without creating a presentation.
 
         Args:
             filename: Image file path.
+            filtering: Sampling used when the image is scaled.
             presentation_enabled: Whether to decode the image with pyglet.
 
         Raises:
             ValueError: Headless mode is used with an unsupported image format.
         """
         self._filename: Path | None = Path(filename).expanduser().resolve()
+        self.filtering = TextureFilter(filtering)
         self._width = self._height = 0
         if not presentation_enabled:
             self._width, self._height = _image_dimensions(self._filename)
@@ -150,7 +181,14 @@ class Image:
         )
 
     @classmethod
-    def solid(cls, width: int, height: int, color: Color) -> Image:
+    def solid(
+        cls,
+        width: int,
+        height: int,
+        color: Color,
+        *,
+        filtering: TextureFilter = TextureFilter.LINEAR,
+    ) -> Image:
         """Create an image filled with a solid RGB or RGBA color.
 
         Args:
@@ -167,15 +205,21 @@ class Image:
         source = pyglet.image.SolidColorImagePattern(rgba).create_image(
             width, height
         )
-        return cls._from_source(source)
+        return cls._from_source(source, filtering=filtering)
 
     @classmethod
-    def _from_source(cls, source: PygletImage) -> Image:
+    def _from_source(
+        cls,
+        source: PygletImage,
+        *,
+        filtering: TextureFilter = TextureFilter.LINEAR,
+    ) -> Image:
         image = cls.__new__(cls)
         image._source = source
         image._filename = None
         image._width = source.width
         image._height = source.height
+        image.filtering = TextureFilter(filtering)
         return image
 
     @property
@@ -274,6 +318,7 @@ class ResourceManager:
         self,
         asset_root: str | PathLike[str] | None = None,
         *,
+        texture_filter: TextureFilter = TextureFilter.LINEAR,
         presentation_enabled: bool = True,
     ) -> None:
         """Create an asset cache.
@@ -281,11 +326,13 @@ class ResourceManager:
         Args:
             asset_root: Base directory for relative asset paths; defaults to
                 the current working directory.
+            texture_filter: Default sampling used for loaded images.
             presentation_enabled: Whether loaded assets create pyglet objects.
         """
         self.presentation_enabled = presentation_enabled
+        self.texture_filter = TextureFilter(texture_filter)
         self.asset_root = asset_root if asset_root is not None else Path.cwd()
-        self._images: dict[str, Image] = {}
+        self._images: dict[tuple[str, TextureFilter], Image] = {}
         self._animations: dict[str, Animation] = {}
         self._sounds: dict[str, Sound] = {}
         self._fonts: dict[str, Font] = {}
@@ -303,21 +350,29 @@ class ResourceManager:
     def _resource_path(self, filename: str | PathLike[str]) -> Path:
         return (self.asset_root / Path(filename).expanduser()).resolve()
 
-    def load_image(self, filename: str | PathLike[str]) -> Image:
+    def load_image(
+        self,
+        filename: str | PathLike[str],
+        *,
+        filtering: TextureFilter | None = None,
+    ) -> Image:
         """Load an image or return its cached instance.
 
         Args:
             filename: Path relative to :attr:`asset_root` unless absolute.
+            filtering: Sampling override; defaults to :attr:`texture_filter`.
         """
         path = self._resource_path(filename)
-        key = str(path)
+        resolved_filter = self.texture_filter if filtering is None else TextureFilter(filtering)
+        key = str(path), resolved_filter
         image = self._images.get(key)
         if image is None:
-            image = (
-                Image(path)
-                if self.presentation_enabled
-                else Image(path, presentation_enabled=False)
-            )
+            options: dict[str, object] = {}
+            if resolved_filter is not TextureFilter.LINEAR:
+                options["filtering"] = resolved_filter
+            if not self.presentation_enabled:
+                options["presentation_enabled"] = False
+            image = Image(path, **options)
             self._images[key] = image
         return image
 
@@ -377,7 +432,11 @@ class ResourceManager:
     def unload(self, filename: str | PathLike[str]) -> None:
         """Remove a path's cached image, animation, sound, and font."""
         key = str(self._resource_path(filename))
-        self._images.pop(key, None)
+        self._images = {
+            image_key: image
+            for image_key, image in self._images.items()
+            if image_key[0] != key
+        }
         self._animations.pop(key, None)
         self._sounds.pop(key, None)
         self._fonts.pop(key, None)
@@ -406,11 +465,14 @@ def source_of(image: Animation) -> PygletAnimation:
 def source_of(
     image: ImageSource,
 ) -> PygletImage | PygletAnimation | None:
-    return image._source
+    source = image._source
+    if isinstance(image, Image) and source is not None:
+        _apply_texture_filter(source, image.filtering)
+    return source
 
 
 def center_source(image: ImageSource) -> None:
-    source = source_of(image)
+    source = image._source
     if source is None:
         return
     frames = (

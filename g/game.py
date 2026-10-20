@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
+from os import PathLike
 from pathlib import Path
 from typing import TypeAlias, TypeVar
 
@@ -12,7 +13,14 @@ from .nodes import GameObject
 from .objects import StatefulGameObject
 from .project import ProjectConfig
 from .presentation import PresentationSettings, ScalingMode
-from .resources import Color, Font, Image, ImageSource, ResourceManager
+from .resources import (
+    Color,
+    Font,
+    Image,
+    ImageSource,
+    ResourceManager,
+    TextureFilter,
+)
 from .math import Vec2
 from .network import NetworkSession
 from .runtime import NullBatch, NullDrawable, set_presentation_enabled
@@ -62,6 +70,7 @@ class Game:
         resizable: bool = True,
         fullscreen: bool = False,
         asset_root: str | Path | None = None,
+        texture_filter: TextureFilter = TextureFilter.LINEAR,
         presentation_enabled: bool = True,
     ) -> None:
         """Create a game with a virtual canvas and an initial empty scene.
@@ -76,6 +85,7 @@ class Game:
             resizable (bool): Whether the window may be resized by default.
             fullscreen (bool): Whether the window starts fullscreen by default.
             asset_root (str | Path | None): Root directory used to resolve relative assets.
+            texture_filter (TextureFilter): Default image scaling filter.
             presentation_enabled (bool): Whether graphics presentation is enabled.
 
         Raises:
@@ -97,7 +107,9 @@ class Game:
         )
         self.input = Input()
         self.resources = ResourceManager(
-            asset_root, presentation_enabled=presentation_enabled
+            asset_root,
+            texture_filter=texture_filter,
+            presentation_enabled=presentation_enabled,
         )
         self.network = NetworkSession(self)
         self.project: ProjectConfig | None = None
@@ -341,6 +353,7 @@ class Game:
         *,
         z_index: int | None = None,
         style: ShapeStyle | None = None,
+        collider: bool = False,
     ) -> GameObject:
         """Create and add a circle centered at ``(x, y)`` in virtual pixels."""
         return self.scenes.current.add_circle(
@@ -351,6 +364,7 @@ class Game:
             layer,
             z_index=z_index,
             style=style,
+            collider=collider,
         )
 
     def add_rect(
@@ -365,6 +379,7 @@ class Game:
         *,
         z_index: int | None = None,
         style: ShapeStyle | None = None,
+        collider: bool = False,
     ) -> GameObject:
         """Create and add a rectangle centered at ``(x, y)`` in virtual pixels.
 
@@ -380,17 +395,20 @@ class Game:
             layer,
             z_index=z_index,
             style=style,
+            collider=collider,
         )
 
     def add_sprite(
         self,
         x: float,
         y: float,
-        image: ImageSource,
+        image: ImageSource | str | PathLike[str],
         angle: float = 0,
         layer: LayerSelector | int | None = None,
         *,
         z_index: int | None = None,
+        filtering: TextureFilter | None = None,
+        collider: bool = False,
     ) -> GameObject:
         """Create and add a sprite centered at ``(x, y)`` in virtual pixels.
 
@@ -403,6 +421,8 @@ class Game:
             angle,
             layer,
             z_index=z_index,
+            filtering=filtering,
+            collider=collider,
         )
 
     def add_text(
@@ -466,6 +486,7 @@ class Game:
         layer: LayerSelector | int | None = None,
         *,
         z_index: int | None = None,
+        collider: bool = False,
     ) -> GameObject:
         """Create and add an animated sprite with named visual states."""
         return self.scenes.current.add_stateful_sprite(
@@ -476,6 +497,7 @@ class Game:
             angle,
             layer,
             z_index=z_index,
+            collider=collider,
         )
 
     def add_line(

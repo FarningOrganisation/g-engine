@@ -57,6 +57,7 @@ nav:
       - Editor: getting-started/editor.md
   - Guides:
       - Game, scenes, and timing: guides/scenes.md
+      - Editor reference: guides/editor.md
       - Objects and scripts: guides/objects.md
       - Input and coordinates: guides/input.md
       - Resources, colors, and text: guides/resources.md

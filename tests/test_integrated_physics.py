@@ -235,6 +235,7 @@ class IntegratedPhysicsTests(unittest.TestCase):
             (255, 255, 255),
             40,
             30,
+            collider=True,
         )
 
         self.game._update(0)
@@ -252,6 +253,7 @@ class IntegratedPhysicsTests(unittest.TestCase):
             (255, 255, 255),
             40,
             30,
+            collider=True,
         )
 
         body = rectangle.add_physics(BodyType.DYNAMIC)
@@ -279,6 +281,7 @@ class IntegratedPhysicsTests(unittest.TestCase):
             (255, 255, 255),
             20,
             20,
+            collider=True,
         )
         area_object = self.game.add(create_area_box(50, 50, 60, 60))
         area = area_object.require_component(Area)
@@ -309,10 +312,10 @@ class IntegratedPhysicsTests(unittest.TestCase):
         )
         area = area_object.add_component(Area(collider_index=1))
         unrelated = self.game.add_rect(
-            50, 50, (255, 255, 255), 10, 10
+            50, 50, (255, 255, 255), 10, 10, collider=True
         )
         target = self.game.add_rect(
-            150, 50, (255, 255, 255), 10, 10
+            150, 50, (255, 255, 255), 10, 10, collider=True
         )
         entered, stayed, exited = Mock(), Mock(), Mock()
         area.on_enter(entered)
@@ -340,7 +343,9 @@ class IntegratedPhysicsTests(unittest.TestCase):
             Collider(shape="circle", radius=20, categories=0b0010, mask=0b0100, sensor=True)
         )
         area = area_object.add_component(Area())
-        target = self.game.add_circle(80, 80, (255, 255, 255), 8)
+        target = self.game.add_circle(
+            80, 80, (255, 255, 255), 8, collider=True
+        )
         target_collider = target.require_component(Collider)
         target_collider.categories = 0b1000
         target_collider.mask = 0b0010
@@ -396,6 +401,7 @@ class IntegratedPhysicsTests(unittest.TestCase):
             (255, 255, 255),
             20,
             20,
+            collider=True,
         )
         second = self.game.add_rect(
             50,
@@ -403,6 +409,7 @@ class IntegratedPhysicsTests(unittest.TestCase):
             (255, 255, 255),
             20,
             20,
+            collider=True,
         )
         assert first.collider is not None
         first.collider.mode = ColliderMode.QUERY_ONLY
@@ -425,6 +432,7 @@ class IntegratedPhysicsTests(unittest.TestCase):
             (255, 255, 255),
             40,
             30,
+            collider=True,
         )
 
         matches = self.game.physics.overlap_point((80, 60))
@@ -438,12 +446,14 @@ class IntegratedPhysicsTests(unittest.TestCase):
             (255, 255, 255),
             40,
             30,
+            collider=True,
         )
         second = self.game.add_circle(
             200,
             60,
             (255, 255, 255),
             12,
+            collider=True,
         )
 
         self.assertEqual(
@@ -470,12 +480,14 @@ class IntegratedPhysicsTests(unittest.TestCase):
             (255, 255, 255),
             40,
             30,
+            collider=True,
         )
         second = self.game.add_circle(
             200,
             60,
             (255, 255, 255),
             12,
+            collider=True,
         )
 
         hits = self.game.physics.raycast_all_hits(
@@ -512,12 +524,14 @@ class IntegratedPhysicsTests(unittest.TestCase):
             (255, 255, 255),
             40,
             30,
+            collider=True,
         )
         second = self.game.add_circle(
             200,
             60,
             (255, 255, 255),
             12,
+            collider=True,
         )
 
         hit = self.game.physics.nearest((0, 60))
@@ -551,12 +565,14 @@ class IntegratedPhysicsTests(unittest.TestCase):
             (255, 255, 255),
             40,
             30,
+            collider=True,
         )
         outside = self.game.add_circle(
             200,
             60,
             (255, 255, 255),
             12,
+            collider=True,
         )
 
         polygon_matches = self.game.physics.overlap_polygon(

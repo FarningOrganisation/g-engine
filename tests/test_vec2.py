@@ -3,7 +3,7 @@ from math import pi
 
 from pyglet.math import Vec2 as PygletVec2
 
-from g import GameObject, Node, Vec2
+from g import GameObject, Image, Node, SpriteRenderer, Vec2, create_sprite
 
 
 class Vec2Tests(unittest.TestCase):
@@ -32,6 +32,19 @@ class Vec2Tests(unittest.TestCase):
         self.assertIsInstance(obj.position, Vec2)
         x, y = obj.position
         self.assertEqual((x, y), (10, 20))
+
+    def test_scale_supports_uniform_and_non_uniform_assignment(self) -> None:
+        obj = GameObject(scale=3)
+        self.assertEqual(obj.scale, Vec2(3, 3))
+
+        obj.scale = (2, 4)
+        self.assertEqual((obj.scale_x, obj.scale_y), (2, 4))
+        snapshot = obj.scale
+        snapshot.x = 9
+        self.assertEqual(obj.scale, Vec2(2, 4))
+
+        with self.assertRaisesRegex(ValueError, "either scale"):
+            GameObject(scale=2, scale_x=3)
 
     def test_tuple_assignment_returns_vector(self) -> None:
         obj = GameObject()
@@ -126,6 +139,65 @@ class Vec2Tests(unittest.TestCase):
 
         self.assertEqual(child.world_position, Vec2(300, 400))
         self.assertEqual(child.world_rotation, 75)
+
+    def test_world_relationship_helpers_accept_points_and_nodes(self) -> None:
+        source = Node(10, 20)
+        target = Node(13, 24)
+
+        self.assertEqual(source.distance_to(target), 5)
+        self.assertEqual(source.direction_to(target), Vec2(0.6, 0.8))
+        self.assertAlmostEqual(source.angle_to((20, 20)), 0)
+        self.assertAlmostEqual(source.angle_to((10, 10)), 90)
+        self.assertEqual(source.direction_to((10, 20)), Vec2.zero())
+
+        source.look_at(target, offset=10)
+        self.assertAlmostEqual(source.world_rotation, source.angle_to(target) + 10)
+
+    def test_move_and_rotate_towards_use_world_space(self) -> None:
+        parent = Node(100, 100, rotation=25)
+        child = Node()
+        parent.add_child(child)
+
+        child.move_towards((106, 108), 5)
+        self.assertEqual(child.world_position, Vec2(103, 104))
+
+        child.world_rotation = 170
+        child.rotate_towards(child.world_position + Vec2(-1, 0), 5)
+        self.assertEqual(child.world_rotation, 175)
+        child.rotate_towards(child.world_position + Vec2(-1, 0), 10)
+        self.assertEqual(child.world_rotation, -180)
+
+        with self.assertRaisesRegex(ValueError, "max_degrees"):
+            child.rotate_towards((0, 0), -1)
+
+    def test_face_towards_keeps_sprite_upright_without_flipping_transform(
+        self,
+    ) -> None:
+        sprite = create_sprite(
+            Image.solid(8, 4, (255, 255, 255)),
+            10,
+            20,
+        )
+        renderer = sprite.require_component(SpriteRenderer)
+        sprite.scale = (2, 3)
+        child = sprite.add_child(Node(5, 0))
+
+        sprite.face_towards((20, 20))
+        self.assertFalse(renderer.flip_y)
+        self.assertEqual(sprite.world_rotation, 0)
+
+        sprite.face_towards((0, 20))
+        self.assertTrue(renderer.flip_y)
+        self.assertEqual(abs(sprite.world_rotation), 180)
+        self.assertEqual(sprite.scale, Vec2(2, 3))
+        self.assertEqual(child.world_position, Vec2(0, 20))
+
+        sprite.face_towards((20, 20), keep_upright=False)
+        self.assertFalse(renderer.flip_y)
+
+    def test_face_towards_requires_a_sprite_renderer(self) -> None:
+        with self.assertRaisesRegex(LookupError, "SpriteRenderer"):
+            GameObject().face_towards((1, 0))
 
     def test_pos_alias_is_removed(self) -> None:
         self.assertFalse(hasattr(GameObject(), "pos"))

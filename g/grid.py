@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from math import ceil, floor
+from os import PathLike
 from typing import TYPE_CHECKING, Protocol, TypeVar
 
 from .components import ShapeStyle, SpriteAnimation
 from .nodes import GameObject, Node
 from .objects import create_circle, create_line, create_rect, create_sprite, create_stateful_sprite, create_text
-from .resources import Color, Font, ImageSource
+from .resources import Color, Font, ImageSource, ResourceManager, TextureFilter
 
 if TYPE_CHECKING:
     from .scene import LayerSelector
@@ -32,6 +33,11 @@ class GridOwner(Protocol):
     @property
     def root(self) -> Node:
         """Root node used for overlay objects."""
+        ...
+
+    @property
+    def resources(self) -> ResourceManager:
+        """Resource manager used to resolve sprite paths."""
         ...
 
     def add(
@@ -147,6 +153,7 @@ class Grid:
         *,
         z_index: int | None = None,
         style: ShapeStyle | None = None,
+        collider: bool = False,
     ) -> GameObject:
         """Create a circle centered in a cell; default radius is half a cell."""
         x, y = self.cell_center(column, row)
@@ -159,6 +166,7 @@ class Grid:
                 self.cell_size / 2 if radius is None else radius,
                 z_index=order or 0,
                 style=style,
+                collider=collider,
             ),
             layer=target,
         )
@@ -175,6 +183,7 @@ class Grid:
         *,
         z_index: int | None = None,
         style: ShapeStyle | None = None,
+        collider: bool = False,
     ) -> GameObject:
         """Create a rectangle centered in a cell; omitted dimensions use cell size."""
         x, y = self.cell_center(column, row)
@@ -189,6 +198,7 @@ class Grid:
                 angle,
                 z_index=order or 0,
                 style=style,
+                collider=collider,
             ),
             layer=target,
         )
@@ -197,17 +207,30 @@ class Grid:
         self,
         column: float,
         row: float,
-        image: ImageSource,
+        image: ImageSource | str | PathLike[str],
         angle: float = 0,
         layer: LayerSelector | int | None = None,
         *,
         z_index: int | None = None,
+        filtering: TextureFilter | None = None,
+        collider: bool = False,
     ) -> GameObject:
         """Create a sprite centered in a cell; ``angle`` is measured in degrees."""
         x, y = self.cell_center(column, row)
         target, order = self._placement(layer, z_index)
+        if isinstance(image, (str, PathLike)):
+            image = self.game.resources.load_image(image, filtering=filtering)
+        elif filtering is not None:
+            raise ValueError("filtering can only be set when loading an image path")
         return self.game.add(
-            create_sprite(image, x, y, angle, z_index=order or 0),
+            create_sprite(
+                image,
+                x,
+                y,
+                angle,
+                z_index=order or 0,
+                collider=collider,
+            ),
             layer=target,
         )
 
@@ -253,6 +276,7 @@ class Grid:
         layer: LayerSelector | int | None = None,
         *,
         z_index: int | None = None,
+        collider: bool = False,
     ) -> GameObject:
         """Create a stateful sprite centered in a cell."""
         x, y = self.cell_center(column, row)
@@ -265,6 +289,7 @@ class Grid:
                 y,
                 angle,
                 z_index=order or 0,
+                collider=collider,
             ),
             layer=target,
         )

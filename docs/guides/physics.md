@@ -5,10 +5,12 @@ Colliders define shapes and filtering. A `PhysicsBody` provides body motion
 and shared filtering defaults; objects without bodies can still have static
 colliders.
 
-Visual factories attach colliders where applicable, but moving a transform is
-not the same as defining a dynamic rigid-body simulation. Consult
-`PhysicsBody`, `Collider`, and the character-controller reference before
-adding motion.
+Visual factories are collider-free by default. Pass `collider=True` for an
+automatically sized solid collider, attach a custom `Collider`, or call
+`add_physics()` to infer a collider and body from a supported renderer.
+Movement-motor helpers also infer their required collider. A child visual
+therefore does not become a separate static obstacle merely because it uses a
+sprite or shape renderer.
 
 ## Query without creating a scene object
 

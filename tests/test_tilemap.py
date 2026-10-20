@@ -531,6 +531,7 @@ class TileMapTests(unittest.TestCase):
             (255, 255, 255),
             8,
             8,
+            collider=True,
         )
         object_collision = Mock()
         tile_collision = Mock()
