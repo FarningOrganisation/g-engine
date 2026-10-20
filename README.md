@@ -1,4 +1,9 @@
-# g-engine
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand/g-engine-dark.svg">
+    <img src="docs/assets/brand/g-engine.svg" alt="g-engine" width="620">
+  </picture>
+</p>
 
 `g` is a beginner-friendly, component-based 2D game engine for Python, built
 on [pyglet](https://pyglet.org/) and
@@ -163,3 +168,13 @@ See [testing and compatibility](docs/development/testing.md) and
 ## License
 
 Licensed under the [MIT License](LICENSE).
+
+<p align="center">
+  <small>Developed by</small><br>
+  <a href="https://www.farning.de">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand/farning-logo-dark.svg">
+      <img src="docs/assets/brand/farning-logo.svg" alt="Farning" width="260">
+    </picture>
+  </a>
+</p>

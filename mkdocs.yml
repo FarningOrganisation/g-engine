@@ -1,4 +1,4 @@
-site_name: g
+site_name: g-engine
 site_url: https://farningorganisation.github.io/g-engine/
 repo_url: https://github.com/FarningOrganisation/g-engine
 repo_name: FarningOrganisation/g-engine
@@ -7,6 +7,22 @@ strict: true
 
 theme:
   name: material
+  logo: assets/brand/g-engine-dark.svg
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
   features:
     - navigation.sections
     - navigation.indexes
@@ -48,6 +64,9 @@ markdown_extensions:
 
 exclude_docs: |
   generate_api.py
+
+extra_css:
+  - stylesheets/brand.css
 
 nav:
   - Home: index.md

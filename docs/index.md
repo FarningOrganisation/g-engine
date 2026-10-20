@@ -1,4 +1,9 @@
-# g: Python games, from a few lines to an editor project
+<div class="brand-lockup brand-lockup--engine">
+  <img class="brand-light" src="assets/brand/g-engine.svg" alt="g-engine">
+  <img class="brand-dark" src="assets/brand/g-engine-dark.svg" alt="g-engine">
+</div>
+
+# g-engine: Python games, from a few lines to an editor project
 
 `g` is a component-based 2D game engine built on pyglet and Pymunk.
 Start with the procedural `Game` API, then grow into scenes, reusable scripts,
@@ -38,3 +43,11 @@ game.run(title="My Game")
 
 These guides describe implemented workflows. Internal design documents may
 also discuss future work; they are not a promise that a feature is available.
+
+<div class="brand-company">
+  <span>Developed by</span>
+  <a href="https://www.farning.de" target="_blank" rel="noopener noreferrer">
+    <img class="brand-light" src="assets/brand/farning-logo.svg" alt="Farning">
+    <img class="brand-dark" src="assets/brand/farning-logo-dark.svg" alt="Farning">
+  </a>
+</div>
