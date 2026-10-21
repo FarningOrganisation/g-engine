@@ -175,6 +175,18 @@ class Player(Script):
 
 Registration identifiers must remain stable after scenes use them.
 
+Use **Open Script in VS Code** in a script component's **...** actions menu
+in the Inspector to jump to the script class in Visual Studio Code.
+The command reuses VS Code's most recently active window, selects the file
+(including an already open tab), and requests that VS Code come to the front.
+If VS Code is not running, it starts a window. The operating system may
+restrict applications from taking focus.
+
+VS Code's `code` command must be available on `PATH`. On macOS, standard
+installations in `/Applications` or `~/Applications` are also detected without
+installing the command. Missing source files or launch failures are reported
+in the editor status bar.
+
 !!! warning "Project trust"
     Importing project scripts executes Python with your user permissions.
     Trust only projects you would otherwise run. The trust prompt is consent,

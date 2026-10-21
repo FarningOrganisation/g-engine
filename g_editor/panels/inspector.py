@@ -12,6 +12,7 @@ from g.persistence import JsonValue, SceneFormatError, scene_types
 from g.particles import PARTICLE_PRESETS
 from imgui_bundle import icons_fontawesome_6, imgui
 
+from ..code_editor import open_script_in_editor
 from ..panel_support import ASSET_DRAG_PAYLOAD as _ASSET_DRAG_PAYLOAD, TileCollisionDrag
 from ..state import (
     DEFAULT_SCENE_SIZE,
@@ -2809,6 +2810,18 @@ class InspectorPanel(EditorPanel):
                     self.state.error = str(error)
         return False
 
+    def _open_component_script(self, component_type: str) -> None:
+        try:
+            script_type = scene_types.component_type_for_name(component_type)
+            if not issubclass(script_type, Script):
+                raise ValueError(f"{component_type} is not a script component")
+            path = open_script_in_editor(script_type)
+        except (ValueError, SceneFormatError) as error:
+            self.state.error = str(error)
+        else:
+            self.state.status = f"Opened {path.name} in VS Code"
+            self.state.error = None
+
     def _draw_component_actions(
         self,
         popup_id: str,
@@ -2820,6 +2833,10 @@ class InspectorPanel(EditorPanel):
         if not imgui.begin_popup(popup_id):
             return False
         removed = False
+        if issubclass(scene_types.component_type_for_name(component_type), Script):
+            if imgui.menu_item("Open Script in VS Code", "", False)[0]:
+                self._open_component_script(component_type)
+            imgui.separator()
         if imgui.menu_item("Reset to Defaults", "", False)[0]:
             try:
                 self.state.reset_component(index)
