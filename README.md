@@ -72,7 +72,7 @@ player = game.add_circle(
 def update(delta_time: float) -> None:
     player.x += game.input.get_axis("x") * 180 * delta_time
     player.y += game.input.get_axis("y") * 180 * delta_time
-    if game.input.just_pressed(Key.SPACE):
+    if game.input.key_just_pressed(Key.SPACE):
         player.position = (400, 300)
 
 

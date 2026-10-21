@@ -116,6 +116,7 @@ class MouseButton(IntFlag):
 
 
 InputButton: TypeAlias = Key | MouseButton
+_ButtonToken: TypeAlias = tuple[type[Key] | type[MouseButton], InputButton]
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,10 +138,10 @@ class Input:
         """Create empty input state with default ``x`` and ``y`` axis bindings."""
         self._keys: dict[Key, Modifiers] = {}
         self._mouse_buttons: set[MouseButton] = set()
-        self._pressed: set[InputButton] = set()
-        self._released: set[InputButton] = set()
-        self._pending_pressed: set[InputButton] = set()
-        self._pending_released: set[InputButton] = set()
+        self._pressed: set[_ButtonToken] = set()
+        self._released: set[_ButtonToken] = set()
+        self._pending_pressed: set[_ButtonToken] = set()
+        self._pending_released: set[_ButtonToken] = set()
         self._mouse_position = (0.0, 0.0)
         self._mouse_delta = (0.0, 0.0)
         self._pending_mouse_delta = (0.0, 0.0)
@@ -216,11 +217,43 @@ class Input:
 
     def just_pressed(self, button: InputButton) -> bool:
         """Return whether a key or mouse button was pressed this frame."""
-        return button in self._pressed
+        return (type(button), button) in self._pressed
 
     def just_released(self, button: InputButton) -> bool:
         """Return whether a key or mouse button was released this frame."""
-        return button in self._released
+        return (type(button), button) in self._released
+
+    def key_pressed(self, key: Key) -> bool:
+        """Return whether a keyboard key is currently held."""
+        return key in self._keys
+
+    def key_released(self, key: Key) -> bool:
+        """Return whether a keyboard key is currently not held."""
+        return not self.key_pressed(key)
+
+    def key_just_pressed(self, key: Key) -> bool:
+        """Return whether a keyboard key was pressed this simulation frame."""
+        return (Key, key) in self._pressed
+
+    def key_just_released(self, key: Key) -> bool:
+        """Return whether a keyboard key was released this simulation frame."""
+        return (Key, key) in self._released
+
+    def mouse_pressed(self, button: MouseButton = MouseButton.LEFT) -> bool:
+        """Return whether a mouse button is held; defaults to the left button."""
+        return button in self._mouse_buttons
+
+    def mouse_released(self, button: MouseButton = MouseButton.LEFT) -> bool:
+        """Return whether a mouse button is not held; defaults to the left button."""
+        return not self.mouse_pressed(button)
+
+    def mouse_just_pressed(self, button: MouseButton = MouseButton.LEFT) -> bool:
+        """Return whether a mouse button was pressed this frame; defaults to left."""
+        return (MouseButton, button) in self._pressed
+
+    def mouse_just_released(self, button: MouseButton = MouseButton.LEFT) -> bool:
+        """Return whether a mouse button was released this frame; defaults to left."""
+        return (MouseButton, button) in self._released
 
     def modifiers_for(self, key: Key) -> Modifiers:
         """Return the active modifiers for a held key, or ``Modifiers.NONE``."""
@@ -249,22 +282,22 @@ class Input:
 
     def _press_key(self, key: Key, modifiers: Modifiers) -> None:
         if key not in self._keys:
-            self._pending_pressed.add(key)
+            self._pending_pressed.add((Key, key))
         self._keys[key] = modifiers
 
     def _release_key(self, key: Key) -> None:
         if self._keys.pop(key, None) is not None:
-            self._pending_released.add(key)
+            self._pending_released.add((Key, key))
 
     def _press_mouse(self, button: MouseButton) -> None:
         if button not in self._mouse_buttons:
-            self._pending_pressed.add(button)
+            self._pending_pressed.add((MouseButton, button))
         self._mouse_buttons.add(button)
 
     def _release_mouse(self, button: MouseButton) -> None:
         if button in self._mouse_buttons:
             self._mouse_buttons.remove(button)
-            self._pending_released.add(button)
+            self._pending_released.add((MouseButton, button))
 
     def _move_mouse(
         self,

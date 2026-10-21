@@ -48,6 +48,85 @@ sniper.face_towards(game.input.mouse_position, offset=0)
 Pass `keep_upright=False` when only rotation is wanted. A sprite whose artwork
 does not initially face along positive X can use the `offset` argument.
 
+## Moving forward
+
+`Node.move(distance)`, also available on `GameObject`, moves along the current
+world rotation. Zero degrees faces right (+X), and positive rotation is
+clockwise. Pass a distance in world units, or multiply a speed by delta time:
+
+```python
+# Aim once when creating the bullet.
+bullet.look_at(game.input.mouse_position)
+
+# Move each update along its current facing direction.
+bullet.move(bullet_speed * delta_time)
+```
+
+Negative distances move backward. Movement uses world units even under a
+rotated or scaled parent; parent scale does not change the distance traveled.
+The rotation is read on each call, so changing it steers subsequent movement.
+The distance is not a speed: `move(100)` moves 100 units every time it is
+called, whereas `move(100 * delta_time)` moves at 100 units per second.
+This directly changes the transform, like `translate()`; it does not perform
+a collision sweep or set physics velocity.
+A parent with a zero world-scale component prevents world-position updates
+and causes `move()` to raise `ValueError`.
+
+For a click-to-shoot update callback, combine the
+[mouse helpers](input.md#keyboard-and-mouse-buttons) with `look_at()` and
+`move()`. This snippet assumes an existing `game` and `player`:
+
+```python
+from g import GameObject, colors
+
+bullets: list[GameObject] = []
+bullet_speed = 1000
+
+
+def update(delta_time: float) -> None:
+    if game.input.mouse_just_pressed():
+        bullet = game.add_circle(*player.world_position, colors.YELLOW, radius=3)
+        bullet.look_at(game.input.mouse_position)
+        bullets.append(bullet)
+
+    for bullet in bullets:
+        bullet.move(bullet_speed * delta_time)
+```
+
+Each bullet keeps its initial aim unless its rotation is changed later.
+This minimal example omits bullet lifetime and collision handling.
+
+### Vectors from rotations
+
+To construct a vector using the same clockwise-degree convention, use
+`Vec2.from_rotation(rotation, length=1.0)`:
+
+```python
+from g import Vec2
+
+direction = Vec2.from_rotation(bullet.world_rotation)
+displacement = Vec2.from_rotation(bullet.world_rotation, length=10)
+```
+
+The default length is 1 (a unit direction); zero produces a zero vector, and
+a negative length reverses the direction.
+
+| Rotation in degrees | Direction |
+| --- | --- |
+| `0` | Right (+X) |
+| `90` | Down (-Y) |
+| `180` | Left (-X) |
+| `270` or `-90` | Up (+Y) |
+
+Use `world_rotation` for a world-space direction and `rotation` for a
+direction relative to the parent. For an unparented object they are equal.
+`move(distance)` is equivalent to adding
+`Vec2.from_rotation(obj.world_rotation, distance)` to `obj.world_position`.
+
+`Vec2.from_polar()` and `Vec2.from_heading()` retain their mathematical
+convention of counterclockwise radians. Do not pass an object's
+degree-based rotation directly to either method; use `from_rotation()` instead.
+
 ## Reusable behavior
 
 ```python

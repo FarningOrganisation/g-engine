@@ -353,6 +353,18 @@ class Node:
         """Rotate in world space to face a node or point."""
         self.world_rotation = self.angle_to(target) + offset
 
+    def move(self, distance: float) -> None:
+        """Move forward along the current world rotation by a world-space distance.
+
+        Zero rotation faces +X. Negative distances move backward. Multiply a
+        speed by delta time to get frame-rate-independent movement. Parent
+        scale does not change the distance traveled.
+
+        Raises:
+            ValueError: If a parent has a zero world-scale component.
+        """
+        self.world_position += Vec2.from_rotation(self.world_rotation, distance)
+
     def move_towards(
         self,
         target: Node | Vec2 | tuple[float, float],

@@ -170,6 +170,58 @@ class Vec2Tests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "max_degrees"):
             child.rotate_towards((0, 0), -1)
 
+    def test_move_follows_current_rotation(self) -> None:
+        for node_type in (Node, GameObject):
+            with self.subTest(node_type=node_type):
+                obj = node_type(10, 20)
+                obj.move(5)
+                self.assertEqual(obj.position, Vec2(15, 20))
+                obj.rotation = 90
+                obj.move(3)
+                self.assertAlmostEqual(obj.x, 15)
+                self.assertAlmostEqual(obj.y, 17)
+                obj.move(-3)
+                self.assertAlmostEqual(obj.x, 15)
+                self.assertAlmostEqual(obj.y, 20)
+                obj.move(0)
+                self.assertAlmostEqual(obj.x, 15)
+                self.assertAlmostEqual(obj.y, 20)
+                self.assertEqual(obj.rotation, 90)
+
+    def test_move_after_look_at_follows_target_direction(self) -> None:
+        for target in ((10, 20), (10, 0), (20, 10), (0, 10), (13, 14)):
+            with self.subTest(target=target):
+                bullet = GameObject(10, 10)
+                origin = bullet.world_position
+                bullet.look_at(target)
+                bullet.move(5)
+                expected = origin + (Vec2(*target) - origin).normalize() * 5
+                self.assertAlmostEqual(bullet.x, expected.x)
+                self.assertAlmostEqual(bullet.y, expected.y)
+                self.assertAlmostEqual(bullet.world_position.distance(origin), 5)
+
+    def test_move_uses_world_rotation_and_distance_under_scaled_parent(self) -> None:
+        for scale in ((2, 3), (-2, 3)):
+            with self.subTest(scale=scale):
+                parent = Node(100, 200, rotation=30, scale=scale)
+                child = GameObject(5, 10, rotation=60)
+                parent.add_child(child)
+                origin = child.world_position
+                child.move(10)
+                self.assertAlmostEqual(child.world_position.x, origin.x)
+                self.assertAlmostEqual(child.world_position.y, origin.y - 10)
+                self.assertAlmostEqual(child.world_position.distance(origin), 10)
+                self.assertEqual(child.rotation, 60)
+                self.assertEqual(parent.position, Vec2(100, 200))
+
+    def test_move_through_zero_scale_parent_raises(self) -> None:
+        parent = Node(scale_x=0)
+        child = GameObject()
+        parent.add_child(child)
+        with self.assertRaisesRegex(ValueError, "zero scale"):
+            child.move(10)
+        self.assertEqual(child.position, Vec2.zero())
+
     def test_face_towards_keeps_sprite_upright_without_flipping_transform(
         self,
     ) -> None:
@@ -284,7 +336,7 @@ class Vec2Tests(unittest.TestCase):
             vector.normalize(), Vec2().normalize(), vector.rotate(pi / 2),
             vector.lerp((5, 6), 0.5), vector.step((1, 1)),
             vector.clamp(0, 3), vector.clamp((0, 0), (3, 3)),
-            Vec2.from_heading(0), Vec2.from_polar(0),
+            Vec2.from_heading(0), Vec2.from_polar(0), Vec2.from_rotation(0),
         )
         for result in results:
             self.assertIsInstance(result, Vec2)
@@ -292,6 +344,32 @@ class Vec2Tests(unittest.TestCase):
         self.assertEqual(vector.length_squared(), 25)
         self.assertEqual(vector.distance((0, 0)), 5)
         self.assertEqual(Vec2().normalize(), Vec2())
+
+    def test_from_rotation_uses_clockwise_degrees(self) -> None:
+        for rotation, expected in (
+            (0, (1, 0)),
+            (90, (0, -1)),
+            (180, (-1, 0)),
+            (270, (0, 1)),
+            (-90, (0, 1)),
+            (450, (0, -1)),
+        ):
+            for length in (1, 5, 0, -2):
+                with self.subTest(rotation=rotation, length=length):
+                    vector = Vec2.from_rotation(rotation, length)
+                    self.assertAlmostEqual(vector.x, expected[0] * length)
+                    self.assertAlmostEqual(vector.y, expected[1] * length)
+                    self.assertAlmostEqual(vector.length(), abs(length))
+        diagonal = Vec2.from_rotation(45)
+        self.assertAlmostEqual(diagonal.x, 2 ** -0.5)
+        self.assertAlmostEqual(diagonal.y, -(2 ** -0.5))
+
+    def test_math_angle_constructors_keep_counterclockwise_radians(self) -> None:
+        for constructor in (Vec2.from_polar, Vec2.from_heading):
+            with self.subTest(constructor=constructor):
+                vector = constructor(pi / 2)
+                self.assertAlmostEqual(vector.x, 0)
+                self.assertAlmostEqual(vector.y, 1)
 
     def test_reflect_normalizes_normal(self) -> None:
         velocity = Vec2(3, -4)

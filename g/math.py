@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from math import isfinite
+from math import isfinite, radians
 from typing import TypeAlias, overload
 
 from pyglet.math import Vec2 as PygletVec2, Vec3, Vec4
@@ -184,6 +184,19 @@ class Vec2:
             Vec2: The resulting vector.
         """
         return Vec2(*PygletVec2.from_polar(angle, length))
+
+    @staticmethod
+    def from_rotation(rotation: float, length: float = 1.0) -> Vec2:
+        """Construct a vector from an engine rotation in clockwise degrees.
+
+        Args:
+            rotation (float): Clockwise angle in degrees; zero points along +X.
+            length (float): Vector magnitude. Negative values reverse direction.
+
+        Returns:
+            Vec2: The vector pointing in the requested direction.
+        """
+        return Vec2.from_polar(-radians(rotation), length)
 
     def normalize(self) -> Vec2:
         """Return a unit vector in the same direction."""
