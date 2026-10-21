@@ -116,7 +116,7 @@ class MovingPlatformMotorTests(unittest.TestCase):
 
     def test_landing_on_a_moving_platform_settles_to_support_velocity(self):
         game, player, motor, platform, body = self.create_scene(velocity=(30, 0))
-        player.y = 100
+        player.teleport(player.x, 100)
         for _ in range(90):
             game._update(1 / 120)
         self.assertTrue(motor.grounded)
@@ -146,7 +146,7 @@ class MovingPlatformMotorTests(unittest.TestCase):
         game, player, motor, platform, body = self.create_scene()
         game._update(1 / 120)
         body.angular_velocity = 90
-        player.x = 40
+        player.teleport(40, player.y)
         game.physics.refresh_contacts()
         vx, vy = game.physics.ground_velocity(player.collider, platform)
         self.assertLess(vx, 20)

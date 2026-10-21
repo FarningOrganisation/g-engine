@@ -967,6 +967,32 @@ class GameObject(Node):
 
         return self.get_component(PhysicsBody)
 
+    def teleport(
+        self,
+        x: float,
+        y: float,
+        angle: float | None = None,
+    ) -> None:
+        """Move immediately in world space without render interpolation.
+
+        An attached physics body is moved through its teleport API so its
+        simulation pose remains synchronized. Without a body, the object world
+        transform is updated directly.
+
+        Args:
+            x: New world-space horizontal coordinate.
+            y: New world-space vertical coordinate.
+            angle: Optional clockwise world rotation in degrees.
+        """
+        body = self.body
+        if body is not None:
+            body.teleport(x, y, angle)
+            return
+        self.world_position = x, y
+        if angle is not None:
+            self.world_rotation = angle
+        self.reset_interpolation()
+
     def _world_bounds(self) -> tuple[float, float, float, float]:
         from .components import Collider, TileRenderer
 

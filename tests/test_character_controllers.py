@@ -362,6 +362,28 @@ class CharacterControllerTests(unittest.TestCase):
 
         self.assertAlmostEqual(player.y, 100)
 
+    def test_top_down_motor_moves_towards_world_target(self) -> None:
+        player = self.game.add_rect(
+            80,
+            60,
+            (255, 255, 255),
+            20,
+            20,
+        )
+        controller = player.add_top_down_motor(
+            speed=100,
+            acceleration=2000,
+        )
+
+        controller.move_towards((180, 60))
+        self.game._update(0.1)
+        self.assertEqual(controller.velocity, (100, 0))
+
+        target = self.game.add(GameObject(80, 160))
+        controller.move_towards(target)
+        self.game._update(0.1)
+        self.assertEqual(controller.velocity, (0, 100))
+
     def test_platformer_motor_detects_ground_and_jumps(self) -> None:
         self.game.physics.gravity = (0, -600)
         floor = self.game.add_rect(

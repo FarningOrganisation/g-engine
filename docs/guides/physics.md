@@ -12,6 +12,47 @@ Movement-motor helpers also infer their required collider. A child visual
 therefore does not become a separate static obstacle merely because it uses a
 sprite or shape renderer.
 
+## Moving physics bodies
+
+A dynamic `PhysicsBody` owns its object's runtime world position and rotation.
+After the body has entered the physics world, direct changes such as
+`player.position = ...`, `player.move(...)`, or
+`player.move_towards(...)` are discarded with a
+`PhysicsTransformWarning`. Choose the movement operation that matches the
+intended behavior:
+
+```python
+body = player.require_component(PhysicsBody)
+
+# Direct continuous control, in pixels per second.
+body.velocity = (200, 0)
+
+# Physical acceleration or an instantaneous impact.
+body.apply_force((2000, 0))
+body.apply_impulse((0, 300))
+
+# Explicit repositioning without render interpolation.
+player.teleport(400, 300)
+```
+
+`GameObject.teleport()` forwards to an attached body and otherwise updates the
+normal object transform. `PhysicsBody.teleport()` provides the same explicit
+body-level operation. Kinematic and static bodies follow direct object
+transform changes; a dynamic body with fixed rotation also follows direct
+rotation changes.
+
+For player movement, prefer a motor:
+
+```python
+motor = player.add_top_down_motor(speed=250)
+motor.move(input_direction)
+motor.move_towards(target)
+```
+
+`TopDownMotor.move_towards()` converts a world-space object or point into
+directional intent and retains the motor's configured speed, acceleration, and
+deceleration. Platformer movement uses `PlatformerMotor.move()` and `jump()`.
+
 ## Query without creating a scene object
 
 ```python

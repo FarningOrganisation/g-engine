@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from math import hypot, isfinite
+from typing import TYPE_CHECKING
 
 from ..components import (
     Collider,
@@ -10,6 +11,10 @@ from ..components import (
 )
 from ..physics import BodyType, PhysicsBody
 from ..inspector import inspector_field
+
+if TYPE_CHECKING:
+    from ..math import Vec2
+    from ..nodes import Node
 
 
 @requires_components(Collider)
@@ -82,6 +87,16 @@ class TopDownMotor(Script):
             x /= length
             y /= length
         self._intent = (x, y)
+
+    def move_towards(
+        self,
+        target: Node | Vec2 | tuple[float, float],
+    ) -> None:
+        """Set movement intent toward a world-space node or point."""
+        if self.owner is None:
+            raise RuntimeError("motor is not attached")
+        direction = self.owner.direction_to(target)
+        self.move((direction.x, direction.y))
 
     def stop(self) -> None:
         """Clear pending directional intent."""

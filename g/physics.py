@@ -4,8 +4,9 @@ from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
-from math import atan2, ceil, cos, degrees, hypot, isfinite, radians
+from math import atan2, ceil, cos, degrees, hypot, isclose, isfinite, radians
 from typing import TYPE_CHECKING, TypeAlias
+from warnings import warn
 
 import pymunk
 from .inspector import inspector_field
@@ -180,8 +181,20 @@ class BodyType(Enum):
     STATIC = pymunk.Body.STATIC
 
 
+class PhysicsTransformWarning(RuntimeWarning):
+    """Warning emitted when a dynamic body's owner transform is changed directly."""
+
+
 class PhysicsBody(Component):
     """Rigid body attached to a game object.
+
+    A dynamic body owns its object's runtime world position and rotation.
+    Changing the object transform directly after physics initialization emits
+    :class:`PhysicsTransformWarning` and the change is discarded. Use
+    :attr:`velocity`, :meth:`apply_force`, :meth:`apply_impulse`, a movement
+    motor, or :meth:`teleport` instead. Kinematic and static bodies continue to
+    follow direct object-transform changes. A dynamic body with
+    :attr:`fixed_rotation` also follows direct rotation changes.
 
     Attributes:
         body_type: Dynamic, kinematic, or static simulation mode.
@@ -526,7 +539,9 @@ class PhysicsWorld:
             raise ValueError("delta_time must not be negative")
         self.refresh()
         for body in self._registered_bodies:
-            if body.body_type is not BodyType.DYNAMIC:
+            if body.body_type is BodyType.DYNAMIC:
+                self._restore_dynamic_body_transform(body)
+            else:
                 self._sync_owner_to_body(body)
             if body.fixed_rotation:
                 owner = body.owner
@@ -561,7 +576,10 @@ class PhysicsWorld:
             return
         self.refresh()
         for body in self._registered_bodies:
-            self._sync_owner_to_body(body)
+            if body.body_type is BodyType.DYNAMIC:
+                self._restore_dynamic_body_transform(body)
+            else:
+                self._sync_owner_to_body(body)
             self._space.reindex_shapes_for_body(body._body)
         for collider, body in self._implicit_bodies.items():
             if collider in self._registered_colliders:
@@ -1936,6 +1954,49 @@ class PhysicsWorld:
         position = owner.world_position
         component._body.position = position.x, position.y
         component._body.angle = -radians(owner.world_rotation)
+
+    @staticmethod
+    def _restore_dynamic_body_transform(component: PhysicsBody) -> None:
+        owner = component.owner
+        if owner is None:
+            return
+        body = component._body
+        position = owner.world_position
+        position_changed = not (
+            isclose(position.x, body.position.x, abs_tol=1e-6)
+            and isclose(position.y, body.position.y, abs_tol=1e-6)
+        )
+        body_rotation = -degrees(body.angle)
+        rotation_difference = (
+            owner.world_rotation - body_rotation + 180
+        ) % 360 - 180
+        rotation_changed = (
+            not component.fixed_rotation
+            and not isclose(rotation_difference, 0, abs_tol=1e-6)
+        )
+        if position_changed or rotation_changed:
+            label = owner.name or owner.scene_id or "unnamed game object"
+            controlled_transform = (
+                "position"
+                if component.fixed_rotation
+                else "position and rotation"
+            )
+            warn(
+                (
+                    f"Dynamic PhysicsBody on {label!r} controls its runtime "
+                    f"{controlled_transform}; direct transform changes are "
+                    "ignored. Use velocity, apply_force(), apply_impulse(), "
+                    "a movement motor, or teleport()."
+                ),
+                PhysicsTransformWarning,
+                stacklevel=4,
+            )
+        if position_changed:
+            owner.world_position = body.position.x, body.position.y
+        if component.fixed_rotation:
+            body.angle = -radians(owner.world_rotation)
+        elif rotation_changed:
+            owner.world_rotation = body_rotation
 
     @staticmethod
     def _sync_body_to_owner(component: PhysicsBody) -> None:

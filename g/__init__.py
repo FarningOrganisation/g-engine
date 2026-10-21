@@ -151,6 +151,7 @@ from .physics import (
 	RaycastHit,
 	BodyType,
 	PhysicsBody,
+	PhysicsTransformWarning,
 	PhysicsWorld,
 )
 from .prefab import PREFAB_FORMAT, PREFAB_VERSION, instantiate_prefab
@@ -341,6 +342,7 @@ __all__ = [
 	"PASSTHROUGH_FRAGMENT_SOURCE",
 	"PathfindingAlgorithm",
 	"PhysicsBody",
+	"PhysicsTransformWarning",
 	"CollisionContact",
 	"OverlapHit",
 	"PointQueryHit",

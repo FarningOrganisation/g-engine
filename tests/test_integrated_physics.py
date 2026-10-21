@@ -1,4 +1,6 @@
 import unittest
+import warnings
+from math import radians
 from unittest.mock import Mock, call
 
 from g import (
@@ -10,6 +12,7 @@ from g import (
     Game,
     GameObject,
     PhysicsBody,
+    PhysicsTransformWarning,
     Vec2,
     create_area_box,
 )
@@ -76,6 +79,65 @@ class IntegratedPhysicsTests(unittest.TestCase):
         self.game.physics.step(0)
         self.assertAlmostEqual(child.world_position.x, 200)
         self.assertAlmostEqual(child.world_rotation, 70)
+
+    def test_game_object_teleport_keeps_dynamic_body_synchronized(self) -> None:
+        owner = self.game.add(GameObject(20, 30))
+        owner.add_component(Collider(width=10, height=10))
+        body = owner.add_component(PhysicsBody(gravity_scale=0))
+        self.game.physics.step(0)
+
+        owner.teleport(120, 90, angle=25)
+        self.game.physics.step(0)
+
+        self.assertEqual(owner.world_position, (120, 90))
+        self.assertAlmostEqual(owner.world_rotation, 25)
+        self.assertEqual(tuple(body._body.position), (120, 90))
+
+    def test_game_object_teleport_without_body_updates_world_transform(self) -> None:
+        parent = self.game.add(GameObject(100, 80, rotation=30))
+        child = GameObject(10, 20)
+        parent.add_child(child)
+
+        child.teleport(200, 150, angle=70)
+
+        self.assertAlmostEqual(child.world_position.x, 200)
+        self.assertAlmostEqual(child.world_position.y, 150)
+        self.assertAlmostEqual(child.world_rotation, 70)
+
+    def test_dynamic_body_warns_and_discards_direct_transform_changes(self) -> None:
+        owner = self.game.add(GameObject(40, 50))
+        owner.name = "Player"
+        owner.add_component(Collider(width=10, height=10))
+        body = owner.add_component(PhysicsBody(gravity_scale=0))
+        self.game.physics.step(0)
+
+        owner.position.x = 120
+        owner.rotation = 45
+        with self.assertWarnsRegex(
+            PhysicsTransformWarning,
+            "Dynamic PhysicsBody on 'Player'.*teleport",
+        ):
+            self.game.physics.step(0)
+
+        self.assertEqual(owner.position, (40, 50))
+        self.assertEqual(owner.rotation, 0)
+        self.assertEqual(tuple(body._body.position), (40, 50))
+
+    def test_fixed_dynamic_body_accepts_direct_rotation_changes(self) -> None:
+        owner = self.game.add(GameObject(40, 50))
+        owner.add_component(Collider(width=10, height=10))
+        body = owner.add_component(
+            PhysicsBody(gravity_scale=0, fixed_rotation=True)
+        )
+        self.game.physics.step(0)
+
+        owner.rotation = 45
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", PhysicsTransformWarning)
+            self.game.physics.step(0)
+
+        self.assertEqual(owner.rotation, 45)
+        self.assertAlmostEqual(body._body.angle, -radians(45))
 
     def test_physics_parent_and_child_sync_parent_first(self) -> None:
         parent = self.game.add(GameObject(80, 60))
