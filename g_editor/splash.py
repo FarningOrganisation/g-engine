@@ -58,7 +58,7 @@ class EditorSplash:
         self,
         theme: ResolvedTheme,
         *,
-        minimum_duration: float = 1.2,
+        minimum_duration: float = 2.0,
         visible: bool = True,
     ) -> None:
         """Create and immediately display the splash window."""

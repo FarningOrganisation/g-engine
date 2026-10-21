@@ -10,6 +10,7 @@ from pyglet.graphics.vertexdomain import IndexedVertexList
 from pyglet.sprite import SpriteGroup
 
 from .renderer import Renderer, set_vertex_attribute_region
+from .renderer_utils import _bounds_from_points
 from .renderer_utils import _transform_point
 from ..inspector import inspector_field
 from ..resources import Color, Image, clamp_texture_edges, source_of
@@ -282,7 +283,7 @@ class TrailRenderer(Renderer):
         if len(self._segments) > self.max_segments:
             del self._segments[:len(self._segments) - self.max_segments]
 
-    def bind_batch(
+    def _apply_batch_binding(
         self,
         batch: Batch | None,
         group: Group | None,
@@ -400,6 +401,18 @@ class TrailRenderer(Renderer):
                 start_vertex=vertex_count,
             )
         self._rendered_vertex_count = vertex_count
+
+    def world_bounds(self) -> tuple[float, float, float, float] | None:
+        """Return bounds containing the current trail segments."""
+        points = tuple(
+            point
+            for segment in self._segments
+            for point in (segment.start, segment.end)
+        )
+        if not points and self.owner is not None:
+            world = self.owner.world_position
+            points = ((world.x, world.y),)
+        return _bounds_from_points(points, padding=self.width / 2)
 
     def _delete_vertex_list(self) -> None:
         if self._vertex_list is not None:

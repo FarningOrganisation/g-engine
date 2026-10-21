@@ -46,8 +46,9 @@ closed, and reopened from the editor menus.
 
 ## Appearance and help
 
-The editor opens with a branded g-engine and Farning splash screen, then uses
-the operating system's light or dark application appearance by default.
+The editor opens with a branded g-engine and Farning splash screen for at
+least two seconds, then uses the operating system's light or dark application
+appearance by default.
 
 Choose **Window > Theme** to switch between:
 
@@ -81,6 +82,10 @@ zoom levels.
 
 Objects may be nested in the Hierarchy. Child transforms remain relative to
 their parent, while viewport tools convert edits through the parent transform.
+
+The Scene toolbar displays submitted and culled renderer counts plus the
+approximate draw-call count from the previous preview frame. The editor does
+not render the preview target while the Scene panel is collapsed or hidden.
 
 ## Sprites and colliders
 

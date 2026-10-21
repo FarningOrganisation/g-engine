@@ -4,6 +4,7 @@ import pyglet
 
 from .shape_style import ShapeStyle
 from .styled_shape_renderer import StyledShapeRenderer
+from .renderer_utils import _bounds_from_points, _transform_point
 from ..resources import Color
 from ..inspector import inspector_field
 from ..runtime import NullDrawable, presentation_enabled
@@ -113,3 +114,24 @@ class RectRenderer(StyledShapeRenderer):
             abs(scale_x), abs(scale_y)
         )
         self._sync_style()
+
+    def world_bounds(self) -> tuple[float, float, float, float] | None:
+        """Return transformed rectangle bounds including its outline."""
+        if self.owner is None:
+            return None
+        half_width = self.width / 2
+        half_height = self.height / 2
+        points = (
+            (-half_width, -half_height),
+            (half_width, -half_height),
+            (half_width, half_height),
+            (-half_width, half_height),
+        )
+        scale_x, scale_y = self.owner.world_scale
+        padding = self._outline_thickness * max(
+            abs(scale_x), abs(scale_y)
+        ) / 2
+        return _bounds_from_points(
+            tuple(_transform_point(self.owner, point) for point in points),
+            padding=padding,
+        )

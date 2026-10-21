@@ -1392,6 +1392,8 @@ class TileLayer(SceneLayer):
                 if group.visible != chunk_visible:
                     group.visible = chunk_visible
         self._batch.draw()
+        if self.scene._render_stats_builder is not None:
+            self.scene._render_stats_builder.record_batch(self._batch)
 
     def delete(self) -> None:
         """Release render resources for all chunks."""

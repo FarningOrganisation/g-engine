@@ -5,7 +5,7 @@ from pyglet.graphics.shader import ShaderProgram as PygletShaderProgram
 
 from .shape_style import ShapeStyle
 from .styled_shape_renderer import StyledShapeRenderer
-from .renderer_utils import _transform_point
+from .renderer_utils import _bounds_from_points, _transform_point
 from ..resources import Color
 from ..inspector import inspector_field
 from ..runtime import NullDrawable, presentation_enabled
@@ -152,3 +152,15 @@ class PolygonRenderer(StyledShapeRenderer):
             outline.x2, outline.y2 = end
             outline.thickness = thickness
         self._sync_style()
+
+    def world_bounds(self) -> tuple[float, float, float, float] | None:
+        """Return transformed polygon bounds including its outline."""
+        if self.owner is None:
+            return None
+        scale_x, scale_y = self.owner.world_scale
+        return _bounds_from_points(
+            tuple(_transform_point(self.owner, point) for point in self.points),
+            padding=self._outline_thickness
+            * max(abs(scale_x), abs(scale_y))
+            / 2,
+        )

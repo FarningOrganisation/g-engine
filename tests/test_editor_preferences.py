@@ -227,6 +227,10 @@ class EditorThemeTests(unittest.TestCase):
                 company_logo.y + company_logo.height / 2 + 20,
             )
 
+    def test_splash_defaults_to_two_second_minimum(self) -> None:
+        with EditorSplash("dark", visible=False) as splash:
+            self.assertEqual(splash._minimum_duration, 2.0)
+
     def test_editor_theme_change_applies_and_persists_preference(self) -> None:
         editor = ImGuiEditor.__new__(ImGuiEditor)
         editor._preferences = EditorPreferences()

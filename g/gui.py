@@ -24,6 +24,7 @@ from .behaviours import (
 from .resources import Color, Font
 
 if TYPE_CHECKING:
+    from .render_stats import _RenderStatsBuilder
     from .scene import Scene
 
 
@@ -2859,9 +2860,11 @@ class GUIManager:
         for view in self.updating_views:
             view.update(delta_time)
 
-    def _draw(self) -> None:
+    def _draw(self, stats: _RenderStatsBuilder | None = None) -> None:
         for view in self.visible_views:
             view._draw()
+            if stats is not None:
+                stats.record_batch(view.batch)
         color = (
             self._transition.overlay_color
             if self._transition is not None
@@ -2875,6 +2878,8 @@ class GUIManager:
         self._overlay.opacity = rgba[3]
         self._overlay.visible = True
         self._overlay_batch.draw()
+        if stats is not None:
+            stats.record_batch(self._overlay_batch)
 
     def invalidate_layout(self) -> None:
         """Invalidate layouts in all registered views."""

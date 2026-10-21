@@ -134,6 +134,27 @@ class Camera:
         transformed = ~self.view_matrix @ Vec4(x, y, 0, 1)
         return Vec2(transformed.x, transformed.y)
 
+    def bounds_visible(
+        self,
+        bounds: tuple[float, float, float, float],
+    ) -> bool:
+        """Return whether world-space axis-aligned bounds may touch the viewport."""
+        left, bottom, right, top = bounds
+        corners = (
+            self.world_to_screen((left, bottom)),
+            self.world_to_screen((right, bottom)),
+            self.world_to_screen((right, top)),
+            self.world_to_screen((left, top)),
+        )
+        xs = [point.x for point in corners]
+        ys = [point.y for point in corners]
+        return not (
+            max(xs) < 0
+            or min(xs) > self.viewport_width
+            or max(ys) < 0
+            or min(ys) > self.viewport_height
+        )
+
     def reset(self) -> None:
         """Restore the default center, unit zoom, and zero rotation."""
         self.position = self._default_position

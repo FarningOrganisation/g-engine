@@ -3,7 +3,7 @@ from __future__ import annotations
 import pyglet
 
 from .renderer import Renderer
-from .renderer_utils import _transform_point
+from .renderer_utils import _bounds_from_points, _transform_point
 from ..resources import Color
 from ..inspector import inspector_field
 from ..runtime import NullDrawable, presentation_enabled
@@ -124,3 +124,16 @@ class LineRenderer(Renderer):
             abs(scale_x), abs(scale_y)
         )
         self._drawable.visible = self.effective_visible
+
+    def world_bounds(self) -> tuple[float, float, float, float] | None:
+        """Return transformed line bounds including its thickness."""
+        if self.owner is None:
+            return None
+        scale_x, scale_y = self.owner.world_scale
+        return _bounds_from_points(
+            (
+                _transform_point(self.owner, self.start),
+                _transform_point(self.owner, self.end),
+            ),
+            padding=self._thickness * max(abs(scale_x), abs(scale_y)) / 2,
+        )

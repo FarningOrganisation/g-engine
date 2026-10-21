@@ -3,6 +3,7 @@ from __future__ import annotations
 import pyglet
 
 from .renderer import Renderer
+from .renderer_utils import _bounds_from_points, _transform_point
 from ..resources import Image, center_source, source_of
 from ..inspector import inspector_field
 from ..runtime import NullDrawable, presentation_enabled
@@ -142,3 +143,18 @@ class SpriteRenderer(Renderer):
         visible = self.effective_visible and self._image is not None
         if self._drawable.visible != visible:
             self._drawable.visible = visible
+
+    def world_bounds(self) -> tuple[float, float, float, float] | None:
+        """Return transformed image bounds for camera culling."""
+        if self.owner is None or self._image is None:
+            return None
+        source = self._drawable.image
+        points = (
+            (-source.anchor_x, -source.anchor_y),
+            (source.width - source.anchor_x, -source.anchor_y),
+            (source.width - source.anchor_x, source.height - source.anchor_y),
+            (-source.anchor_x, source.height - source.anchor_y),
+        )
+        return _bounds_from_points(tuple(
+            _transform_point(self.owner, point) for point in points
+        ))

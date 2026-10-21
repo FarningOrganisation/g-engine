@@ -14,6 +14,7 @@ from .nodes import Node
 from .scene import ObjectLayer, Scene
 from .shader import PostProcess, PostProcessPipeline
 from .lighting import LightingPipeline
+from .render_stats import RenderStats, _RenderStatsBuilder
 
 
 @dataclass(frozen=True)
@@ -158,6 +159,12 @@ class SceneRenderer:
     def __init__(self) -> None:
         """Create a renderer whose lighting resources remain lazy."""
         self._lighting: LightingPipeline | None = None
+        self._stats = RenderStats()
+
+    @property
+    def stats(self) -> RenderStats:
+        """Statistics captured while rendering the most recent frame."""
+        return self._stats
 
     def render(self, game: Game, window: RenderWindow) -> None:
         """Render one frame and restore the window view and viewport afterward.
@@ -166,10 +173,12 @@ class SceneRenderer:
         without that transform. Enabled post-processing wraps world rendering.
         """
         previous_view = window.view
+        scene = game.scenes.current
+        stats = _RenderStatsBuilder()
+        scene._render_stats_builder = stats
         previous_viewport: tuple[int, int, int, int] | None = None
         framebuffer_size: tuple[int, int] | None = None
         try:
-            scene = game.scenes.current
             effect = scene.post_process
             if not isinstance(effect, (PostProcess, PostProcessPipeline)):
                 effect = None
@@ -229,6 +238,8 @@ class SceneRenderer:
                 effect.draw(width, height)
             game._draw_transition()
         finally:
+            scene._render_stats_builder = None
+            self._stats = stats.finish()
             window.view = previous_view
             if previous_viewport is not None:
                 pyglet.gl.glViewport(*previous_viewport)

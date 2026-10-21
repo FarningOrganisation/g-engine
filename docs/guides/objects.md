@@ -25,6 +25,28 @@ Use `get_component` for optional lookup and `require_component` when absence
 should be an error. Ordinary hierarchy and transforms belong to `Node`;
 gameplay-specific data belongs to `GameObject`.
 
+## Rendering and camera culling
+
+World-space renderers are conservatively culled against the active camera.
+Sprites, shapes, text, tile-renderer patches, trails, and whole particle
+effects leave their render batch while their bounds are outside the viewport.
+Screen-space renderers are never camera-culled. Tile layers additionally cull
+their chunk meshes, and lights are skipped when their range does not intersect
+the viewport.
+
+`SceneRenderer.stats` reports the most recent frame's submitted and culled
+renderer counts, submitted vertices, batch draws, and approximate draw calls:
+
+```python
+stats = renderer.stats
+print(stats.submitted_renderers, stats.culled_renderers)
+print(stats.submitted_vertices, stats.approximate_draw_calls)
+```
+
+The bounds are deliberately conservative: content may occasionally be
+submitted just outside a rotated viewport, but visible content is not removed.
+Renderers without known bounds remain submitted.
+
 ## Aiming sprites
 
 Use `look_at()` when any node should rotate toward another node or a

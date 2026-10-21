@@ -101,3 +101,13 @@ class CircleRenderer(StyledShapeRenderer):
         self._outline.radius = self.radius * scale
         self._outline.thickness = self._outline_thickness * scale
         self._sync_style()
+
+    def world_bounds(self) -> tuple[float, float, float, float] | None:
+        """Return conservative scaled circle bounds including its outline."""
+        if self.owner is None:
+            return None
+        x, y = self.owner.world_position
+        scale_x, scale_y = self.owner.world_scale
+        scale = max(abs(scale_x), abs(scale_y))
+        radius = (self.radius + self._outline_thickness / 2) * scale
+        return x - radius, y - radius, x + radius, y + radius

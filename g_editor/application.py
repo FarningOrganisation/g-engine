@@ -1352,6 +1352,7 @@ class ImGuiEditor(
         self._last_asset_check = self._last_frame
         self._frame_rate = _FrameRateTracker()
         self._viewport_rect = (0.0, 0.0, 0.0, 0.0)
+        self._viewport_visible = False
         self._layer_content_rect = (0.0, 0.0, 0.0, 0.0)
         self._viewport_hovered = False
         self._pan_button: int | None = None
@@ -1732,8 +1733,9 @@ class ImGuiEditor(
             imguizmo.im_guizmo.begin_frame()
             self._draw_interface()
             self.preview.synchronize()
-            with self._animation_viewport_override():
-                self.render_target.render(self.preview)
+            if self._viewport_visible:
+                with self._animation_viewport_override():
+                    self.render_target.render(self.preview)
             imgui.render()
             frame_started = False
             self.window.clear()
@@ -2163,7 +2165,8 @@ class ImGuiEditor(
         self._rename_buffer = ""
         self.state.error = None
     def _draw_viewport(self) -> None:
-        if self._begin_panel("Scene"):
+        self._viewport_visible = self._begin_panel("Scene")
+        if self._viewport_visible:
             if imgui.is_window_focused():
                 self._shortcut_context = "viewport"
             self._draw_viewport_toolbar()
@@ -2503,6 +2506,13 @@ class ImGuiEditor(
                     if playing
                     else "Edit"
                 )
+            )
+            stats = self.preview.renderer.stats
+            imgui.same_line()
+            imgui.text_disabled(
+                f"| {stats.submitted_renderers} drawn, "
+                f"{stats.culled_renderers} culled, "
+                f"~{stats.approximate_draw_calls} calls"
             )
             imgui.same_line()
             self._draw_component_tool_selector()

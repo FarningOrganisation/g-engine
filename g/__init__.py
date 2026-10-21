@@ -21,6 +21,7 @@ from .behaviours import (
 	animate_together,
 )
 from .camera import Camera
+from .render_stats import RenderStats
 from .components import (
 	Area,
 	BehaviourRunner,
@@ -368,6 +369,7 @@ __all__ = [
 	"ProjectValidationError",
 	"RectRenderer",
 	"Renderer",
+	"RenderStats",
 	"RepeatingImageRenderer",
 	"Script",
 	"Repeat",

@@ -686,6 +686,16 @@ class ImGuiEditorTests(unittest.TestCase):
         self.editor.on_draw()
         self.assertEqual(self.editor.state.error, "test frame failure")
 
+    def test_editor_skips_render_target_when_scene_panel_is_hidden(self) -> None:
+        self.editor._viewport_visible = False
+        with (
+            patch.object(self.editor, "_draw_interface"),
+            patch.object(self.editor.render_target, "render") as render,
+        ):
+            self.editor.on_draw()
+
+        render.assert_not_called()
+
     def test_one_sided_numeric_fields_pass_valid_imgui_bounds(self) -> None:
         with patch(
             "g_editor.panels.inspector.FloatField"

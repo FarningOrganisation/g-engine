@@ -75,6 +75,9 @@ class Renderer(Component, ABC):
         self.screen_space = screen_space
         self._shader: Shader | None = None
         self._default_program: PygletShaderProgram | None = None
+        self._camera_visible = True
+        self._desired_batch: pyglet.graphics.Batch | None = None
+        self._desired_group: pyglet.graphics.Group | None = None
 
     @property
     @abstractmethod
@@ -93,6 +96,18 @@ class Renderer(Component, ABC):
         group: pyglet.graphics.Group | None,
     ) -> None:
         """Assign or clear the pyglet batch and group for every drawable."""
+        self._desired_batch = batch
+        self._desired_group = group
+        self._apply_batch_binding(
+            batch if self._camera_visible else None,
+            group if self._camera_visible else None,
+        )
+
+    def _apply_batch_binding(
+        self,
+        batch: pyglet.graphics.Batch | None,
+        group: pyglet.graphics.Group | None,
+    ) -> None:
         for drawable in self.drawables:
             drawable.batch = batch
             drawable.group = group
@@ -122,12 +137,31 @@ class Renderer(Component, ABC):
     @property
     def effective_visible(self) -> bool:
         """Whether the renderer and its owning object are enabled and visible."""
+        return self._camera_visible and self.intrinsic_visible
+
+    @property
+    def intrinsic_visible(self) -> bool:
+        """Whether renderer state permits drawing before camera culling."""
         return bool(
             self.owner
             and self.enabled
             and self.visible
             and self.owner.enabled_in_hierarchy
             and self.owner.visible_in_hierarchy
+        )
+
+    def world_bounds(self) -> tuple[float, float, float, float] | None:
+        """Return conservative world-space bounds, or ``None`` to disable culling."""
+        return None
+
+    def _set_camera_visible(self, visible: bool) -> None:
+        """Attach or detach render resources according to camera visibility."""
+        if visible == self._camera_visible:
+            return
+        self._camera_visible = visible
+        self._apply_batch_binding(
+            self._desired_batch if visible else None,
+            self._desired_group if visible else None,
         )
 
     @abstractmethod

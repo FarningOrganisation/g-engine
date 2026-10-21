@@ -7,7 +7,7 @@ from math import isfinite
 import pyglet
 
 from .renderer import Renderer
-from .renderer_utils import _transform_point
+from .renderer_utils import _bounds_from_points, _transform_point
 from ..inspector import inspector_field
 from ..runtime import NullDrawable, presentation_enabled
 
@@ -99,7 +99,7 @@ class TileRenderer(Renderer):
         """All tile sprites, or the placeholder when there are no tiles."""
         return tuple(item[4] for item in self._tiles) or (self.drawable,)
 
-    def bind_batch(
+    def _apply_batch_binding(
         self,
         batch: pyglet.graphics.Batch | None,
         group: pyglet.graphics.Group | None,
@@ -184,3 +184,15 @@ class TileRenderer(Renderer):
             visible = self.effective_visible and patch.visible and patch.enabled
             if sprite.visible != visible:
                 sprite.visible = visible
+
+    def world_bounds(self) -> tuple[float, float, float, float] | None:
+        """Return bounds containing every transformed tile quad."""
+        points = tuple(
+            point
+            for quad in self.world_quads()
+            for point in quad
+        )
+        if not points and self.owner is not None:
+            world = self.owner.world_position
+            points = ((world.x, world.y),)
+        return _bounds_from_points(points)

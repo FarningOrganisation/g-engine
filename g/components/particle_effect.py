@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from math import cos, hypot, radians, sin
+from math import cos, hypot, radians, sin, sqrt
 
 import pyglet
 from pyglet import gl
@@ -10,6 +10,7 @@ from pyglet.graphics.vertexdomain import IndexedVertexList
 from pyglet.sprite import SpriteGroup
 
 from .renderer import Renderer, set_vertex_attribute_region
+from .renderer_utils import _bounds_from_points
 from ..inspector import inspector_field
 from ..particles import (
     ParticleEffectDefinition,
@@ -225,7 +226,7 @@ class ParticleEffect(Renderer):
             return
         self.player.update(delta_time, self._emitter_transform())
 
-    def bind_batch(
+    def _apply_batch_binding(
         self,
         batch: Batch | None,
         group: Group | None,
@@ -357,6 +358,36 @@ class ParticleEffect(Renderer):
                     start_vertex=vertex_count,
                 )
             self._rendered_vertex_counts[index] = vertex_count
+
+    def world_bounds(self) -> tuple[float, float, float, float] | None:
+        """Return conservative bounds containing all live particles."""
+        if self.owner is None:
+            return None
+        points: list[tuple[float, float]] = []
+        padding = 0.0
+        for particles in self.player.snapshots().values():
+            for particle in particles:
+                x, y = particle.position
+                size = abs(particle.size)
+                if self.simulation_space == "local":
+                    scale_x, scale_y = self.owner.world_scale
+                    x *= scale_x
+                    y *= scale_y
+                    angle = -radians(self.owner.world_rotation)
+                    x, y = (
+                        x * cos(angle) - y * sin(angle),
+                        x * sin(angle) + y * cos(angle),
+                    )
+                    world = self.owner.world_position
+                    x += world.x
+                    y += world.y
+                    size *= (abs(scale_x) + abs(scale_y)) / 2
+                points.append((x, y))
+                padding = max(padding, size / sqrt(2))
+        if not points:
+            world = self.owner.world_position
+            points.append((world.x, world.y))
+        return _bounds_from_points(tuple(points), padding=padding)
 
     def _texture_for(self, emitter_name: str) -> pyglet.image.Texture:
         image = self._images.get(emitter_name)

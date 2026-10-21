@@ -40,6 +40,7 @@ from .objects import (
 )
 from .physics import CollisionContact, PhysicsWorld
 from .resources import Color, Font, Image, ImageSource, TextureFilter
+from .render_stats import _RenderStatsBuilder
 from .math import Vec2
 from .timing import SceneTime
 
@@ -208,13 +209,32 @@ class ObjectLayer(SceneLayer):
 
     def draw(self, camera: Camera) -> None:
         """Synchronize object renderers and draw this layer's batch."""
-        del camera
+        stats = self.scene._render_stats_builder
         for node in self._prepare_render_structure():
             if not isinstance(node, GameObject):
                 continue
             for renderer in node.renderers:
+                intrinsic_visible = renderer.intrinsic_visible
+                bounds = (
+                    None
+                    if renderer.screen_space or not intrinsic_visible
+                    else renderer.world_bounds()
+                )
+                camera_visible = bool(
+                    intrinsic_visible
+                    and (
+                        renderer.screen_space
+                        or bounds is None
+                        or camera.bounds_visible(bounds)
+                    )
+                )
+                renderer._set_camera_visible(camera_visible)
                 renderer.sync()
+                if stats is not None and intrinsic_visible:
+                    stats.record_renderer(culled=not camera_visible)
         self._batch.draw()
+        if stats is not None:
+            stats.record_batch(self._batch)
 
     def _prepare_render_structure(self) -> tuple[Node, ...]:
         nodes = self.root.walk()
@@ -238,6 +258,8 @@ class ObjectLayer(SceneLayer):
     def draw_ui(self) -> None:
         """Draw the layer's screen-space batch."""
         self._ui_batch.draw()
+        if self.scene._render_stats_builder is not None:
+            self.scene._render_stats_builder.record_batch(self._ui_batch)
 
     def delete(self) -> None:
         """Delete resources for objects in the layer and detach its root children."""
@@ -763,6 +785,7 @@ class Scene:
         self._tile_collisions: set[tuple[GameObject, TileContact]] = set()
         self._tile_overlaps: set[tuple[GameObject, TileContact]] = set()
         self.camera = Camera(self.width, self.height)
+        self._render_stats_builder: _RenderStatsBuilder | None = None
         if not self.presentation_enabled:
             from .runtime import NullBatch, NullDrawable
             self._background_batch = NullBatch()
@@ -1475,12 +1498,14 @@ class Scene:
 
     def _draw_background(self) -> None:
         self._background_batch.draw()
+        if self._render_stats_builder is not None:
+            self._render_stats_builder.record_batch(self._background_batch)
 
     def _draw_ui(self) -> None:
         for layer in self.layers:
             if layer.visible:
                 layer.draw_ui()
-        self.gui._draw()
+        self.gui._draw(self._render_stats_builder)
 
     def on_load(self) -> None:
         """Hook called once when the scene is first loaded; override as needed."""
@@ -1518,7 +1543,8 @@ class _HeadlessGUIManager:
     def _update(self, delta_time: float) -> None:
         del delta_time
 
-    def _draw(self) -> None:
+    def _draw(self, stats: _RenderStatsBuilder | None = None) -> None:
+        del stats
         pass
 
     def on_key_press(self, symbol: object, modifiers: object) -> bool:

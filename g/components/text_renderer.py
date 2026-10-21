@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from math import cos, radians, sin
+
 import pyglet
 
 from .renderer import Renderer
+from .renderer_utils import _bounds_from_points
 from ..resources import Color, Font
 from ..inspector import inspector_field
 from ..runtime import NullDrawable, presentation_enabled
@@ -210,3 +213,38 @@ class TextRenderer(Renderer):
             self._drawable.font_size = scaled_size
             self._fit_multiline()
         self._drawable.visible = self.effective_visible
+
+    def world_bounds(self) -> tuple[float, float, float, float] | None:
+        """Return conservative rotated label bounds."""
+        if self.owner is None or isinstance(self._drawable, NullDrawable):
+            return None
+        scale_x, scale_y = self.owner.world_scale
+        desired_size = self._font_size * max(abs(scale_x), abs(scale_y))
+        current_size = max(float(self._drawable.font_size), 0.001)
+        ratio = desired_size / current_size
+        width = self._drawable.content_width * ratio
+        height = self._drawable.content_height * ratio
+        left = (
+            0
+            if self._alignment == "left"
+            else -width if self._alignment == "right"
+            else -width / 2
+        )
+        bottom = -height / 2
+        angle = -radians(self.owner.world_rotation)
+        cosine = cos(angle)
+        sine = sin(angle)
+        world_x, world_y = self.owner.world_position
+        points = tuple(
+            (
+                world_x + x * cosine - y * sine,
+                world_y + x * sine + y * cosine,
+            )
+            for x, y in (
+                (left, bottom),
+                (left + width, bottom),
+                (left + width, bottom + height),
+                (left, bottom + height),
+            )
+        )
+        return _bounds_from_points(points)

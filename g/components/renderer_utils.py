@@ -6,6 +6,24 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from ..nodes import GameObject
 
+
+def _bounds_from_points(
+    points: tuple[tuple[float, float], ...],
+    *,
+    padding: float = 0,
+) -> tuple[float, float, float, float] | None:
+    if not points:
+        return None
+    xs = [point[0] for point in points]
+    ys = [point[1] for point in points]
+    return (
+        min(xs) - padding,
+        min(ys) - padding,
+        max(xs) + padding,
+        max(ys) + padding,
+    )
+
+
 def _transform_point(
     owner: GameObject,
     point: tuple[float, float],
