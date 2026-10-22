@@ -211,6 +211,12 @@ The Animation panel controls the default state, looping, frame order, and
 duration. Timeline playback and scrubbing preview animation without starting
 scripts or physics. Stop gameplay Play mode before editing animation data.
 
+To create frames from a regular sprite sheet, select the image in **Assets**,
+then choose **Add Frames from Sheet...** in the Animation panel. Configure the
+cell width and height, margin, and spacing, then click cells to select or
+deselect them. The order in which cells are selected becomes their frame
+order. The scene stores each frame as an image reference and pixel region.
+
 ## Tiles, GUI, and specialized editors
 
 Tile layers use the Tile Palette for painting and collision authoring. See

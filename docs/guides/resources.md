@@ -69,6 +69,43 @@ and `error`. Loading uses the normal resource cache, so later calls such as
 empties them. Cache eviction is not a request to delete game objects currently
 using those resources.
 
+## Sprite sheets
+
+`SpriteSheet.grid` divides any static image into reusable regions. Coordinates
+use a top-left origin, indexing is `grid[column, row]`, and iteration is
+row-major:
+
+```python
+import g
+
+sheet = g.SpriteSheet(
+    game.resources.load_image("images/player-sheet.png")
+)
+grid = sheet.grid(
+    32,
+    32,
+    margin=1,
+    spacing=1,
+)
+
+renderer = player.require_component(g.SpriteRenderer)
+renderer.image = grid[0, 0]
+
+walk = g.SpriteAnimation(tuple(
+    g.SpriteAnimationFrame(grid[column, 1], 0.1)
+    for column in range(4)
+))
+animator = player.add_component(
+    g.SpriteAnimator({"walk": walk}, "walk")
+)
+```
+
+Use the optional `columns` and `rows` arguments when only part of the regular
+grid is populated. Grid dimensions, margins, spacing, and requested bounds are
+validated when the grid is created. Sprite-sheet regions remain references to
+the original image and are stored in scenes as the asset path plus pixel
+region, rather than copied into separate files.
+
 ## Text and project fonts
 
 ```python

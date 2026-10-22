@@ -6657,6 +6657,22 @@ class EditorState:
                 image = state["image"]
                 if image is not None and (not isinstance(image, str) or not image):
                     raise ValueError("sprite state image must be an asset path or null")
+                region = state.get("region")
+                if region is not None and (
+                    state.get("animated", False)
+                    or image is None
+                    or not isinstance(region, list)
+                    or len(region) != 4
+                    or any(
+                        not isinstance(value, int)
+                        or isinstance(value, bool)
+                        for value in region
+                    )
+                ):
+                    raise ValueError(
+                        "sprite state region must contain four integers "
+                        "for a static image"
+                    )
                 continue
             frames = state.get("frames")
             if not isinstance(frames, list) or not frames:
@@ -6669,10 +6685,25 @@ class EditorState:
                         "sprite animation frame must be an object"
                     )
                 image = frame.get("image")
+                region = frame.get("region")
                 duration = frame.get("duration")
                 if "image" not in frame or (image is not None and (not isinstance(image, str) or not image)):
                     raise ValueError(
                         "sprite animation frame image must not be empty"
+                    )
+                if region is not None and (
+                    image is None
+                    or not isinstance(region, list)
+                    or len(region) != 4
+                    or any(
+                        not isinstance(value, int)
+                        or isinstance(value, bool)
+                        for value in region
+                    )
+                ):
+                    raise ValueError(
+                        "sprite animation frame region must contain "
+                        "four integers and an image"
                     )
                 if (
                     not isinstance(duration, (int, float))
@@ -6762,6 +6793,7 @@ class EditorState:
                 "sprite animation frame must be an object"
             )
         frame["image"] = relative
+        frame.pop("region", None)
         self.mark_changed("Changed sprite animation frame image")
 
     def new(self) -> None:

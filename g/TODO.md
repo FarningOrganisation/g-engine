@@ -120,7 +120,8 @@ or its editor to adopt all of Tiled's data model.
 
 ## Rendering and visual effects
 
-- [ ] Add sprite-sheet and texture-atlas loading
+- [x] Add regular-grid sprite-sheet loading and slicing
+- [ ] Add named and irregular texture-atlas loading
 - [ ] Add particles with reusable emitters
 - [ ] Add 2D lights, optional shadows, and normal-map support
 - [ ] Add render-to-texture surfaces and multiple camera viewports
@@ -132,7 +133,8 @@ or its editor to adopt all of Tiled's data model.
 ## Animation
 
 - [ ] Add reusable animation clips and named animation libraries
-- [ ] Add sprite-sheet frame animations and animation events
+- [x] Add sprite-sheet frame animations
+- [ ] Add sprite animation events
 - [ ] Add simple animation state machines for idle/run/jump/attack workflows
 - [ ] Add animation queues and explicit property-conflict handling
 - [ ] Preserve `object.animate()` as the simple beginner API

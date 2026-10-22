@@ -53,6 +53,8 @@ What this editor should do:
     - keep submitted preview/timeline textures alive through rendering, even when editing replaces a clip
     - proportional frame timelines with drag resizing, frame reordering, and undo
     - multi-image Assets selection and drag/drop; GIF timing overrides without modifying source assets
+    - sprite-sheet grid slicing from a selected image asset, with cell size,
+      margin, spacing, visual cell selection, and selection-ordered frame import
     - an Inspector summary and shortcut to open the panel
 - create and edit multi-emitter `.particle.json` assets in a dedicated dockable
   Particles panel with isolated play, pause, restart, stop, and step preview

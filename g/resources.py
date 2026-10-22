@@ -236,6 +236,202 @@ class Image:
         return self._height if self._source is None else self._source.height
 
 
+class SpriteSheetRegion(Image):
+    """A rectangular, top-left-origin region of a sprite-sheet image."""
+
+    def __init__(
+        self,
+        sheet: Image,
+        x: int,
+        y: int,
+        width: int,
+        height: int,
+    ) -> None:
+        """Create a region within ``sheet``.
+
+        Args:
+            sheet: Source sprite-sheet image.
+            x: Region's left edge in pixels.
+            y: Region's top edge in pixels.
+            width: Positive region width in pixels.
+            height: Positive region height in pixels.
+
+        Raises:
+            ValueError: Coordinates or dimensions are invalid or out of bounds.
+        """
+        if any(
+            not isinstance(value, int) or isinstance(value, bool)
+            for value in (x, y, width, height)
+        ):
+            raise TypeError("sprite-sheet region values must be integers")
+        if x < 0 or y < 0 or width <= 0 or height <= 0:
+            raise ValueError(
+                "sprite-sheet region coordinates must be non-negative "
+                "and dimensions must be positive"
+            )
+        if x + width > sheet.width or y + height > sheet.height:
+            raise ValueError("sprite-sheet region exceeds its image")
+        self.sheet = sheet
+        self.x = x
+        self.y = y
+        self._width = width
+        self._height = height
+        self.filtering = sheet.filtering
+        self._filename = sheet._filename
+        source = source_of(sheet)
+        self._source = (
+            source.get_region(
+                x,
+                sheet.height - y - height,
+                width,
+                height,
+            )
+            if source is not None
+            else None
+        )
+
+
+class SpriteSheetGrid(Sequence[SpriteSheetRegion]):
+    """A row-major grid of regions sliced from one sprite sheet."""
+
+    def __init__(
+        self,
+        image: Image,
+        cell_width: int,
+        cell_height: int,
+        *,
+        columns: int,
+        rows: int,
+        margin: int,
+        spacing: int,
+    ) -> None:
+        self.image = image
+        self.cell_width = cell_width
+        self.cell_height = cell_height
+        self.columns = columns
+        self.rows = rows
+        self.margin = margin
+        self.spacing = spacing
+
+    def __len__(self) -> int:
+        return self.columns * self.rows
+
+    @overload
+    def __getitem__(self, key: int) -> SpriteSheetRegion:
+        ...
+
+    @overload
+    def __getitem__(self, key: slice) -> Sequence[SpriteSheetRegion]:
+        ...
+
+    @overload
+    def __getitem__(self, key: tuple[int, int]) -> SpriteSheetRegion:
+        ...
+
+    def __getitem__(
+        self,
+        key: int | slice | tuple[int, int],
+    ) -> SpriteSheetRegion | Sequence[SpriteSheetRegion]:
+        if isinstance(key, slice):
+            return tuple(self[index] for index in range(*key.indices(len(self))))
+        if isinstance(key, tuple):
+            if len(key) != 2:
+                raise IndexError("sprite-sheet grid indices must be column, row")
+            column, row = key
+        else:
+            index = key
+            if index < 0:
+                index += len(self)
+            if not 0 <= index < len(self):
+                raise IndexError("sprite-sheet grid index out of range")
+            column, row = index % self.columns, index // self.columns
+        if (
+            not isinstance(column, int)
+            or isinstance(column, bool)
+            or not isinstance(row, int)
+            or isinstance(row, bool)
+        ):
+            raise TypeError("sprite-sheet grid indices must be integers")
+        if not 0 <= column < self.columns or not 0 <= row < self.rows:
+            raise IndexError("sprite-sheet grid index out of range")
+        return SpriteSheetRegion(
+            self.image,
+            self.margin + column * (self.cell_width + self.spacing),
+            self.margin + row * (self.cell_height + self.spacing),
+            self.cell_width,
+            self.cell_height,
+        )
+
+
+class SpriteSheet:
+    """Slice a static image into reusable sprite regions."""
+
+    def __init__(self, image: Image) -> None:
+        if not isinstance(image, Image):
+            raise TypeError("sprite sheet requires an Image")
+        self.image = image
+
+    def grid(
+        self,
+        cell_width: int,
+        cell_height: int | None = None,
+        *,
+        columns: int | None = None,
+        rows: int | None = None,
+        margin: int = 0,
+        spacing: int = 0,
+    ) -> SpriteSheetGrid:
+        """Slice the image into a top-left-origin regular grid.
+
+        Cells are indexed as ``grid[column, row]`` and iteration is row-major.
+        ``columns`` and ``rows`` can limit a partially populated sheet.
+        """
+        cell_height = cell_width if cell_height is None else cell_height
+        values = (cell_width, cell_height, margin, spacing)
+        if any(
+            not isinstance(value, int) or isinstance(value, bool)
+            for value in values
+        ):
+            raise TypeError("sprite-sheet grid values must be integers")
+        if cell_width <= 0 or cell_height <= 0:
+            raise ValueError("sprite-sheet cell dimensions must be positive")
+        if margin < 0 or spacing < 0:
+            raise ValueError(
+                "sprite-sheet margin and spacing must be non-negative"
+            )
+        available_width = self.image.width - margin * 2
+        available_height = self.image.height - margin * 2
+        maximum_columns = (available_width + spacing) // (
+            cell_width + spacing
+        )
+        maximum_rows = (available_height + spacing) // (
+            cell_height + spacing
+        )
+        resolved_columns = maximum_columns if columns is None else columns
+        resolved_rows = maximum_rows if rows is None else rows
+        if any(
+            not isinstance(value, int) or isinstance(value, bool)
+            for value in (resolved_columns, resolved_rows)
+        ):
+            raise TypeError("sprite-sheet columns and rows must be integers")
+        if (
+            resolved_columns <= 0
+            or resolved_rows <= 0
+            or resolved_columns > maximum_columns
+            or resolved_rows > maximum_rows
+        ):
+            raise ValueError("sprite-sheet grid does not fit its image")
+        return SpriteSheetGrid(
+            self.image,
+            cell_width,
+            cell_height,
+            columns=resolved_columns,
+            rows=resolved_rows,
+            margin=margin,
+            spacing=spacing,
+        )
+
+
 class Animation:
     """An image animation asset."""
     def __init__(

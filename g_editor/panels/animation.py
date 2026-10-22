@@ -8,7 +8,16 @@ from math import isfinite
 from pathlib import Path
 from typing import cast
 
-from g import Animation, Image, SpriteAnimation, SpriteAnimationFrame, SpriteRenderer
+from g import (
+    Animation,
+    Image,
+    SpriteAnimation,
+    SpriteAnimationFrame,
+    SpriteRenderer,
+    SpriteSheet,
+    SpriteSheetGrid,
+    SpriteSheetRegion,
+)
 from g.persistence import JsonValue, SceneFormatError
 from g.resources import source_of
 from imgui_bundle import icons_fontawesome_6, imgui
@@ -65,6 +74,13 @@ class AnimationPanel(EditorPanel):
         self._animation_frame_rects: dict[int, tuple[float, float, float, float]] = {}
         self._animation_frame_textures: list[Texture] = []
         self._animation_viewport_active = False
+        self._sprite_sheet_path: Path | None = None
+        self._sprite_sheet_cell_width = 32
+        self._sprite_sheet_cell_height = 32
+        self._sprite_sheet_margin = 0
+        self._sprite_sheet_spacing = 0
+        self._sprite_sheet_selection: list[int] = []
+        self._sprite_sheet_selection_initialized = False
 
     def _show_animation_panel(self) -> None:
         self._animation_focus_pending = True
@@ -174,7 +190,11 @@ class AnimationPanel(EditorPanel):
                     durations=cast(list[float] | None, durations),
                 )
             else:
-                clip = SpriteAnimation.from_image(Image(root / path))
+                image = Image(root / path)
+                region = state.get("region")
+                if region is not None:
+                    image = self._sprite_sheet_region(image, region)
+                clip = SpriteAnimation.from_image(image)
         else:
             frames = state.get("frames")
             if not isinstance(frames, list) or not frames:
@@ -188,9 +208,37 @@ class AnimationPanel(EditorPanel):
                     raise SceneFormatError("animation frame duration must be a number")
                 if path is not None and not isinstance(path, str):
                     raise SceneFormatError("animation frame image must be an asset path or null")
-                decoded.append(SpriteAnimationFrame(Image(root / path) if isinstance(path, str) else None, duration))
+                image = Image(root / path) if isinstance(path, str) else None
+                region = frame.get("region")
+                if image is not None and region is not None:
+                    image = self._sprite_sheet_region(image, region)
+                decoded.append(SpriteAnimationFrame(image, duration))
             clip = SpriteAnimation(tuple(decoded))
         return SpriteAnimation(clip.frames, loop=bool(state.get("loop", clip.loop)), source=clip.source)
+
+    @staticmethod
+    def _sprite_sheet_region(
+        image: Image,
+        region: JsonValue,
+    ) -> SpriteSheetRegion:
+        if (
+            not isinstance(region, list)
+            or len(region) != 4
+            or any(
+                not isinstance(value, int) or isinstance(value, bool)
+                for value in region
+            )
+        ):
+            raise SceneFormatError(
+                "sprite-sheet region must contain four integers"
+            )
+        try:
+            return SpriteSheetRegion(
+                image,
+                *cast(list[int], region),
+            )
+        except (TypeError, ValueError) as error:
+            raise SceneFormatError(str(error)) from error
 
     def _refresh_animation_clip(self, state: dict[str, JsonValue]) -> None:
         paths: list[str] = []
@@ -326,6 +374,7 @@ class AnimationPanel(EditorPanel):
                     self._draw_animation_transport()
                 imgui.end_child()
         imgui.end_child()
+        self._draw_sprite_sheet_popup(index, states, state_index)
 
     def _draw_animation_state_context(
         self, index: int, properties: dict[str, JsonValue], states: list[dict[str, JsonValue]], name: str,
@@ -698,6 +747,10 @@ class AnimationPanel(EditorPanel):
                     updated = deepcopy(states)
                     updated[state_index] = {"name": state["name"], "loop": state.get("loop", True), "frames": [{"image": state.get("image"), "duration": 0.1}]}
                     self.state.set_sprite_animator_configuration(index, cast(JsonValue, updated))
+                if imgui.button(
+                    "Add Frames from Sheet...##animation-static"
+                ):
+                    self._open_sprite_sheet_popup(state)
                 return
         else:
             self._animation_frame = min(self._animation_frame, len(frames) - 1)
@@ -725,6 +778,8 @@ class AnimationPanel(EditorPanel):
                 self.state.set_sprite_animator_configuration(
                     index, cast(JsonValue, updated), history_label="Added animation frame",
                 )
+            if imgui.button("Add Frames from Sheet...##animation"):
+                self._open_sprite_sheet_popup(state)
             imgui.same_line()
             imgui.begin_disabled(len(frames) == 1)
             if imgui.button("Remove Frame##animation"):
@@ -739,6 +794,254 @@ class AnimationPanel(EditorPanel):
             imgui.end_disabled()
         else:
             imgui.text_disabled("GIF frame order comes from the asset. Timing edits are stored in the scene.")
+
+    def _open_sprite_sheet_popup(
+        self,
+        state: dict[str, JsonValue],
+    ) -> None:
+        candidate = self._selected_asset
+        if (
+            candidate is None
+            or candidate.suffix.lower() not in IMAGE_SUFFIXES
+            or candidate.suffix.lower() == ".gif"
+        ):
+            frames = state.get("frames")
+            current: JsonValue = None
+            if isinstance(frames, list) and frames:
+                frame_index = min(self._animation_frame, len(frames) - 1)
+                frame = frames[frame_index]
+                if isinstance(frame, dict):
+                    current = frame.get("image")
+            candidate = (
+                self.state.asset_root / current
+                if isinstance(current, str)
+                else None
+            )
+        self._sprite_sheet_path = candidate
+        self._sprite_sheet_selection = []
+        self._sprite_sheet_selection_initialized = False
+        imgui.open_popup("Add Frames from Sprite Sheet")
+
+    def _draw_sprite_sheet_popup(
+        self,
+        component_index: int,
+        states: list[dict[str, JsonValue]],
+        state_index: int,
+    ) -> None:
+        opened, _ = imgui.begin_popup_modal(
+            "Add Frames from Sprite Sheet",
+            None,
+            flag(imgui.WindowFlags_.always_auto_resize),
+        )
+        if not opened:
+            return
+        try:
+            selected = self._selected_asset
+            can_use_selected = (
+                selected is not None
+                and selected.suffix.lower() in IMAGE_SUFFIXES
+                and selected.suffix.lower() != ".gif"
+            )
+            imgui.begin_disabled(not can_use_selected)
+            if imgui.button("Use selected image asset"):
+                self._sprite_sheet_path = selected
+                self._sprite_sheet_selection = []
+                self._sprite_sheet_selection_initialized = False
+            imgui.end_disabled()
+            path = self._sprite_sheet_path
+            imgui.same_line()
+            imgui.text_disabled(
+                path.name if path is not None else "Select a PNG/JPG/BMP asset"
+            )
+            changed_width, self._sprite_sheet_cell_width = imgui.input_int(
+                "Cell Width",
+                self._sprite_sheet_cell_width,
+            )
+            changed_height, self._sprite_sheet_cell_height = imgui.input_int(
+                "Cell Height",
+                self._sprite_sheet_cell_height,
+            )
+            changed_margin, self._sprite_sheet_margin = imgui.input_int(
+                "Margin",
+                self._sprite_sheet_margin,
+            )
+            changed_spacing, self._sprite_sheet_spacing = imgui.input_int(
+                "Spacing",
+                self._sprite_sheet_spacing,
+            )
+            grid_changed = (
+                changed_width
+                or changed_height
+                or changed_margin
+                or changed_spacing
+            )
+            grid = None
+            error: str | None = None
+            if path is not None:
+                try:
+                    image = Image(path)
+                    grid = SpriteSheet(image).grid(
+                        self._sprite_sheet_cell_width,
+                        self._sprite_sheet_cell_height,
+                        margin=self._sprite_sheet_margin,
+                        spacing=self._sprite_sheet_spacing,
+                    )
+                except (OSError, TypeError, ValueError, ImageDecodeException) as caught:
+                    error = str(caught)
+            if grid is not None:
+                if grid_changed or not self._sprite_sheet_selection_initialized:
+                    self._sprite_sheet_selection = list(range(len(grid)))
+                    self._sprite_sheet_selection_initialized = True
+                self._sprite_sheet_selection = [
+                    index
+                    for index in self._sprite_sheet_selection
+                    if index < len(grid)
+                ]
+                texture = source_of(grid.image).get_texture()
+                self._animation_frame_textures.append(texture)
+                assert texture.id is not None
+                maximum_width, maximum_height = 560.0, 320.0
+                scale = min(
+                    maximum_width / texture.width,
+                    maximum_height / texture.height,
+                    1.0,
+                )
+                size = imgui.ImVec2(
+                    texture.width * scale,
+                    texture.height * scale,
+                )
+                imgui.image(
+                    imgui.ImTextureRef(texture.id),
+                    size,
+                    imgui.ImVec2(0, 1),
+                    imgui.ImVec2(1, 0),
+                )
+                minimum = imgui.get_item_rect_min()
+                if imgui.is_item_clicked():
+                    mouse = imgui.get_mouse_pos()
+                    column = int(
+                        (mouse.x - minimum.x) / scale
+                        - grid.margin
+                    ) // (grid.cell_width + grid.spacing)
+                    row = int(
+                        (mouse.y - minimum.y) / scale
+                        - grid.margin
+                    ) // (grid.cell_height + grid.spacing)
+                    if 0 <= column < grid.columns and 0 <= row < grid.rows:
+                        region = grid[column, row]
+                        local_x = (mouse.x - minimum.x) / scale
+                        local_y = (mouse.y - minimum.y) / scale
+                        if (
+                            region.x <= local_x < region.x + region.width
+                            and region.y <= local_y < region.y + region.height
+                        ):
+                            cell = row * grid.columns + column
+                            if cell in self._sprite_sheet_selection:
+                                self._sprite_sheet_selection.remove(cell)
+                            else:
+                                self._sprite_sheet_selection.append(cell)
+                draw = imgui.get_window_draw_list()
+                selected_cells = set(self._sprite_sheet_selection)
+                for cell in range(len(grid)):
+                    region = grid[cell]
+                    top_left = imgui.ImVec2(
+                        minimum.x + region.x * scale,
+                        minimum.y + region.y * scale,
+                    )
+                    bottom_right = imgui.ImVec2(
+                        top_left.x + region.width * scale,
+                        top_left.y + region.height * scale,
+                    )
+                    color = (
+                        imgui.get_color_u32(imgui.Col_.plot_histogram)
+                        if cell in selected_cells
+                        else imgui.get_color_u32(imgui.Col_.border)
+                    )
+                    draw.add_rect(
+                        top_left,
+                        bottom_right,
+                        color,
+                        thickness=2.0 if cell in selected_cells else 1.0,
+                    )
+                imgui.text(
+                    f"{len(self._sprite_sheet_selection)} of "
+                    f"{len(grid)} cells selected (selection order is frame order)"
+                )
+                if imgui.button("Select All"):
+                    self._sprite_sheet_selection = list(range(len(grid)))
+                imgui.same_line()
+                if imgui.button("Clear Selection"):
+                    self._sprite_sheet_selection.clear()
+            elif error is not None:
+                imgui.text_wrapped(error)
+            imgui.separator()
+            imgui.begin_disabled(
+                grid is None or not self._sprite_sheet_selection
+            )
+            if imgui.button("Add Selected Frames") and grid is not None:
+                assert path is not None
+                self._add_sprite_sheet_frames(
+                    component_index,
+                    states,
+                    state_index,
+                    path,
+                    grid,
+                )
+                imgui.close_current_popup()
+            imgui.end_disabled()
+            imgui.same_line()
+            if imgui.button("Cancel"):
+                imgui.close_current_popup()
+        except (OSError, ValueError, SceneFormatError) as caught:
+            self.state.error = f"Could not slice sprite sheet: {caught}"
+        finally:
+            imgui.end_popup()
+
+    def _add_sprite_sheet_frames(
+        self,
+        component_index: int,
+        states: list[dict[str, JsonValue]],
+        state_index: int,
+        path: Path,
+        grid: SpriteSheetGrid,
+    ) -> None:
+        relative = path.resolve().relative_to(
+            self.state.asset_root
+        ).as_posix()
+        updated = deepcopy(states)
+        state = updated[state_index]
+        frames = state.get("frames")
+        if not isinstance(frames, list):
+            frames = []
+            state.pop("image", None)
+            state.pop("animated", None)
+            state.pop("durations", None)
+            state.pop("region", None)
+            state["frames"] = frames
+        if (
+            len(frames) == 1
+            and isinstance(frames[0], dict)
+            and frames[0].get("image") is None
+        ):
+            frames.clear()
+        for cell in self._sprite_sheet_selection:
+            region = grid[cell]
+            frames.append({
+                "image": relative,
+                "region": [
+                    region.x,
+                    region.y,
+                    region.width,
+                    region.height,
+                ],
+                "duration": 0.1,
+            })
+        self.state.set_sprite_animator_configuration(
+            component_index,
+            cast(JsonValue, updated),
+            history_label="Added sprite-sheet frames",
+        )
+        self._reset_animation_preview()
 
     def _drop_animation_assets(self, paths: tuple[Path, ...]) -> None:
         selected = self._sync_animation_selection()

@@ -16,7 +16,7 @@ from imgui_bundle import icons_fontawesome_6, imgui
 from g_editor.application import ImGuiEditor
 from g_editor.panels.animation import AnimationPreview
 from g_editor.ui import icon_button
-from g import Animation, SceneSerializer, SpriteAnimation, SpriteAnimationFrame, SpriteAnimator, SpriteRenderer
+from g import Animation, Image, SceneSerializer, SpriteAnimation, SpriteAnimationFrame, SpriteAnimator, SpriteRenderer, SpriteSheet, SpriteSheetRegion
 from g.persistence import JsonValue, SceneFormatError
 from g.resources import source_of
 
@@ -105,6 +105,60 @@ class AnimationPanelTests(unittest.TestCase):
         self.assertEqual(animator.frame_index, 0)
         self.assertTrue(self.editor.state.undo())
         self.assertEqual(self.editor.state.document, before)
+
+    def test_sprite_sheet_grid_adds_region_frames_and_round_trips(self) -> None:
+        sheet = self.root / "sheet.png"
+        pyglet.image.SolidColorImagePattern(
+            (255, 255, 255, 255)
+        ).create_image(32, 16).save(str(sheet))
+        component, _, states = self.selected()
+        grid = SpriteSheet(Image(sheet)).grid(16)
+        self.editor._sprite_sheet_selection = [1, 0]
+
+        self.editor._add_sprite_sheet_frames(
+            component,
+            states,
+            0,
+            sheet,
+            grid,
+        )
+        self.draw()
+
+        _, _, states = self.selected()
+        self.assertEqual(states[0]["frames"], [
+            {
+                "image": "sheet.png",
+                "region": [16, 0, 16, 16],
+                "duration": 0.1,
+            },
+            {
+                "image": "sheet.png",
+                "region": [0, 0, 16, 16],
+                "duration": 0.1,
+            },
+        ])
+        restored = SceneSerializer().restore(
+            self.editor.preview.game,
+            self.editor.state.document,
+            asset_root=self.root,
+        )
+        frames = restored.objects[0].require_component(
+            SpriteAnimator
+        ).states["default"].frames
+        self.assertTrue(
+            all(
+                isinstance(frame.image, SpriteSheetRegion)
+                for frame in frames
+            )
+        )
+        self.assertEqual(
+            [
+                (frame.image.x, frame.image.y)
+                for frame in frames
+                if isinstance(frame.image, SpriteSheetRegion)
+            ],
+            [(16, 0), (0, 0)],
+        )
 
     def test_state_add_and_selection_are_separate_from_runtime_default(self) -> None:
         index, properties, states = self.selected()

@@ -79,7 +79,7 @@ from .presentation import (
     PresentationSettings,
     ScalingMode,
 )
-from .resources import Animation, Color, Font, Image
+from .resources import Animation, Color, Font, Image, SpriteSheetRegion
 from .scene import ObjectLayer, Scene
 from .tilemap import (
     ColorTileSet,
@@ -1322,13 +1322,61 @@ def _register_builtins(registry: SceneTypeRegistry) -> None:
         },
         restore=restore_shape,
     )
+
+    def _load_sprite_image(
+        context: SceneLoadContext,
+        path: Path,
+        region: object,
+    ) -> Image:
+        image = context.game.resources.load_image(path)
+        if region is None:
+            return image
+        if (
+            not isinstance(region, list)
+            or len(region) != 4
+            or any(
+                not isinstance(value, int) or isinstance(value, bool)
+                for value in region
+            )
+        ):
+            raise SceneFormatError(
+                "sprite image region must contain four integers"
+            )
+        try:
+            return SpriteSheetRegion(image, *region)
+        except (TypeError, ValueError) as error:
+            raise SceneFormatError(str(error)) from error
+
+    def _dump_sprite_image(
+        image: Image | Animation | None,
+        context: SceneSaveContext,
+    ) -> dict[str, object]:
+        if image is None:
+            return {"image": None}
+        result: dict[str, object] = {
+            "image": context.resource_path(image)
+        }
+        if isinstance(image, SpriteSheetRegion):
+            result["region"] = [
+                image.x,
+                image.y,
+                image.width,
+                image.height,
+            ]
+        return result
+
     def create_sprite_renderer(
         context: SceneLoadContext,
         properties: Mapping[str, object],
     ) -> SpriteRenderer:
         image = properties.get("image")
+        region = properties.get("region")
         if properties.get("animated", False):
             raise SceneFormatError("Sprite Renderer no longer plays animations; use Sprite Animator")
+        if region is not None and (not isinstance(image, str) or not image):
+            raise SceneFormatError(
+                "sprite image region requires an image asset"
+            )
         for name in ("flip_x", "flip_y"):
             if not isinstance(properties.get(name, False), bool):
                 raise SceneFormatError(f"Sprite Renderer {name} must be a boolean")
@@ -1338,7 +1386,11 @@ def _register_builtins(registry: SceneTypeRegistry) -> None:
             or context.resource_exists(image)
         ):
             path = context.resource_path(image)
-            source = context.game.resources.load_image(path)
+            source = _load_sprite_image(
+                context,
+                path,
+                region,
+            )
         return SpriteRenderer(
             source,
             visible=bool(properties.get("visible", True)),
@@ -1353,14 +1405,14 @@ def _register_builtins(registry: SceneTypeRegistry) -> None:
         category="Renderers", display_name="Sprite Renderer", builtin=True,
         create=create_sprite_renderer,
         dump=lambda value, context: {
-            "image": (
+            **_dump_sprite_image(
                 None
-                if value.image is None or (
-                    value.image._filename is None
-                    and value.owner is not None
-                    and value.owner.get_component(SpriteAnimator) is not None
-                )
-                else context.resource_path(value.image)
+                if value.image is not None
+                and value.image._filename is None
+                and value.owner is not None
+                and value.owner.get_component(SpriteAnimator) is not None
+                else value.image,
+                context,
             ),
             "opacity": value.opacity,
             "flip_x": value.flip_x,
@@ -1461,9 +1513,16 @@ def _register_builtins(registry: SceneTypeRegistry) -> None:
                 if "frames" in state_value:
                     raise SceneFormatError("sprite state must use either an image asset or frames")
                 path = state_value["image"]
+                region = state_value.get("region")
                 animated = state_value.get("animated", False)
                 if not isinstance(animated, bool):
                     raise SceneFormatError("sprite state animated must be a boolean")
+                if region is not None and (
+                    animated or not isinstance(path, str) or not path
+                ):
+                    raise SceneFormatError(
+                        "sprite state region requires a static image asset"
+                    )
                 durations_value = state_value.get("durations")
                 durations: list[float] | None = None
                 if durations_value is not None:
@@ -1481,7 +1540,7 @@ def _register_builtins(registry: SceneTypeRegistry) -> None:
                                 durations=durations,
                             )
                             if animated else SpriteAnimation.from_image(
-                                context.game.resources.load_image(resolved)
+                                _load_sprite_image(context, resolved, region)
                             )
                         )
                     except ValueError as error:
@@ -1506,15 +1565,24 @@ def _register_builtins(registry: SceneTypeRegistry) -> None:
                         "sprite animation frame must be an object"
                     )
                 image = frame_value.get("image")
+                region = frame_value.get("region")
                 if "image" not in frame_value or (image is not None and (not isinstance(image, str) or not image)):
                     raise SceneFormatError(
                         "sprite animation frame image must be a "
                         "non-empty string or null"
                     )
+                if region is not None and image is None:
+                    raise SceneFormatError(
+                        "sprite animation frame region requires an image asset"
+                    )
                 duration = _number(frame_value, "duration")
                 try:
                     frame = SpriteAnimationFrame(
-                        context.game.resources.load_image(context.resource_path(image))
+                        _load_sprite_image(
+                            context,
+                            context.resource_path(image),
+                            region,
+                        )
                         if isinstance(image, str) else None,
                         duration,
                     )
@@ -1547,14 +1615,14 @@ def _register_builtins(registry: SceneTypeRegistry) -> None:
         for name, animation in value.states.items():
             state: dict[str, object] = {"name": name, "loop": animation.loop}
             if animation.source is not None:
-                state["image"] = context.resource_path(animation.source)
+                state.update(_dump_sprite_image(animation.source, context))
                 state["animated"] = isinstance(animation.source, Animation)
                 if isinstance(animation.source, Animation):
                     state["durations"] = [frame.duration for frame in animation.frames]
             else:
                 state["frames"] = [
                     {
-                        "image": context.resource_path(frame.image) if frame.image is not None else None,
+                        **_dump_sprite_image(frame.image, context),
                         "duration": frame.duration,
                     }
                     for frame in animation.frames

@@ -200,6 +200,9 @@ from .resources import (
 	ResourceBundle,
 	ResourceManager,
 	Sound,
+	SpriteSheet,
+	SpriteSheetGrid,
+	SpriteSheetRegion,
 	TextureFilter,
 )
 from .rendering import SceneRenderer
@@ -401,6 +404,9 @@ __all__ = [
 	"SpriteAnimationFrame",
 	"SpriteAnimator",
 	"SpriteRenderer",
+	"SpriteSheet",
+	"SpriteSheetGrid",
+	"SpriteSheetRegion",
 	"SpotLight2D",
 	"Spline",
 	"StatefulGameObject",
