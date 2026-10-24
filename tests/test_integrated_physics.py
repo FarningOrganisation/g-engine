@@ -227,7 +227,7 @@ class IntegratedPhysicsTests(unittest.TestCase):
         self.assertIn(owner, self.game.physics.overlap_point((40, 40), categories=8, mask=2))
 
     def test_add_physics_accepts_shared_filter_defaults(self) -> None:
-        owner = self.game.add_rect(40, 40, (255, 255, 255), 10, 10)
+        owner = self.game.add_rect(40, 40, 10, 10, (255, 255, 255))
         body = owner.add_physics(categories=2, mask=4, group=3)
         self.assertEqual((body.categories, body.mask, body.group), (2, 4, 3))
         assert owner.collider is not None
@@ -294,9 +294,9 @@ class IntegratedPhysicsTests(unittest.TestCase):
         rectangle = self.game.add_rect(
             80,
             60,
-            (255, 255, 255),
             40,
             30,
+            (255, 255, 255),
             collider=True,
         )
 
@@ -312,9 +312,9 @@ class IntegratedPhysicsTests(unittest.TestCase):
         rectangle = self.game.add_rect(
             80,
             60,
-            (255, 255, 255),
             40,
             30,
+            (255, 255, 255),
             collider=True,
         )
 
@@ -340,9 +340,9 @@ class IntegratedPhysicsTests(unittest.TestCase):
         player = self.game.add_rect(
             50,
             50,
+            20,
+            20,
             (255, 255, 255),
-            20,
-            20,
             collider=True,
         )
         area_object = self.game.add(create_area_box(50, 50, 60, 60))
@@ -374,10 +374,20 @@ class IntegratedPhysicsTests(unittest.TestCase):
         )
         area = area_object.add_component(Area(collider_index=1))
         unrelated = self.game.add_rect(
-            50, 50, (255, 255, 255), 10, 10, collider=True
+            50,
+            50,
+            10,
+            10,
+            (255, 255, 255),
+            collider=True,
         )
         target = self.game.add_rect(
-            150, 50, (255, 255, 255), 10, 10, collider=True
+            150,
+            50,
+            10,
+            10,
+            (255, 255, 255),
+            collider=True,
         )
         entered, stayed, exited = Mock(), Mock(), Mock()
         area.on_enter(entered)
@@ -406,7 +416,11 @@ class IntegratedPhysicsTests(unittest.TestCase):
         )
         area = area_object.add_component(Area())
         target = self.game.add_circle(
-            80, 80, (255, 255, 255), 8, collider=True
+            80,
+            80,
+            8,
+            (255, 255, 255),
+            collider=True,
         )
         target_collider = target.require_component(Collider)
         target_collider.categories = 0b1000
@@ -460,17 +474,17 @@ class IntegratedPhysicsTests(unittest.TestCase):
         first = self.game.add_rect(
             50,
             50,
+            20,
+            20,
             (255, 255, 255),
-            20,
-            20,
             collider=True,
         )
         second = self.game.add_rect(
             50,
             50,
+            20,
+            20,
             (255, 255, 255),
-            20,
-            20,
             collider=True,
         )
         assert first.collider is not None
@@ -491,9 +505,9 @@ class IntegratedPhysicsTests(unittest.TestCase):
         rectangle = self.game.add_rect(
             80,
             60,
-            (255, 255, 255),
             40,
             30,
+            (255, 255, 255),
             collider=True,
         )
 
@@ -505,16 +519,16 @@ class IntegratedPhysicsTests(unittest.TestCase):
         first = self.game.add_rect(
             80,
             60,
-            (255, 255, 255),
             40,
             30,
+            (255, 255, 255),
             collider=True,
         )
         second = self.game.add_circle(
             200,
             60,
-            (255, 255, 255),
             12,
+            (255, 255, 255),
             collider=True,
         )
 
@@ -539,16 +553,16 @@ class IntegratedPhysicsTests(unittest.TestCase):
         first = self.game.add_rect(
             80,
             60,
-            (255, 255, 255),
             40,
             30,
+            (255, 255, 255),
             collider=True,
         )
         second = self.game.add_circle(
             200,
             60,
-            (255, 255, 255),
             12,
+            (255, 255, 255),
             collider=True,
         )
 
@@ -583,16 +597,16 @@ class IntegratedPhysicsTests(unittest.TestCase):
         first = self.game.add_rect(
             80,
             60,
-            (255, 255, 255),
             40,
             30,
+            (255, 255, 255),
             collider=True,
         )
         second = self.game.add_circle(
             200,
             60,
-            (255, 255, 255),
             12,
+            (255, 255, 255),
             collider=True,
         )
 
@@ -624,16 +638,16 @@ class IntegratedPhysicsTests(unittest.TestCase):
         rectangle = self.game.add_rect(
             80,
             60,
-            (255, 255, 255),
             40,
             30,
+            (255, 255, 255),
             collider=True,
         )
         outside = self.game.add_circle(
             200,
             60,
-            (255, 255, 255),
             12,
+            (255, 255, 255),
             collider=True,
         )
 

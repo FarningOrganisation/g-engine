@@ -83,12 +83,12 @@ class ShooterScene(Scene):
         self.player = self.grid.add_circle(
             BOARD_WIDTH // 2,
             BOARD_HEIGHT // 2,
-            PLAYER_COLOR,
             radius=10,
             z_index=3,
             collider=True,
+            color=PLAYER_COLOR,
         )
-        self.gun = create_rect(15, 0, GUN_COLOR, 25, 7, z_index=4)
+        self.gun = create_rect(15, 0, 25, 7, GUN_COLOR, z_index=4)
         self.player.add_child(self.gun)
         self._mouse_position = (self.player.x + CELL_SIZE, self.player.y)
         self._aim_at(*self._mouse_position)
@@ -122,9 +122,9 @@ class ShooterScene(Scene):
             wall = self.grid.add_rect(
                 grid_x,
                 grid_y,
+                CELL_SIZE - 2,
+                CELL_SIZE - 2,
                 WALL_COLOR,
-                CELL_SIZE - 2,
-                CELL_SIZE - 2,
                 z_index=1,
                 collider=True,
             )
@@ -137,9 +137,9 @@ class ShooterScene(Scene):
             body = create_rect(
                 x,
                 y,
+                21,
+                21,
                 ENEMY_COLORS[0],
-                21,
-                21,
                 z_index=2,
                 collider=True,
             )
@@ -235,8 +235,8 @@ class ShooterScene(Scene):
         bullet = create_circle(
             self.player.x + direction_x * 24,
             self.player.y + direction_y * 24,
-            BULLET_COLOR,
             4,
+            BULLET_COLOR,
             z_index=5,
             collider=True,
         )

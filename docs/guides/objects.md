@@ -7,10 +7,10 @@ add them to the scene:
 from g import Game, RectRenderer, colors, create_rect
 
 game = Game(800, 600)
-wall = game.add(create_rect(200, 150, colors.SLATE_GRAY, 120, 24))
-ball = game.add_circle(400, 300, colors.CORNFLOWER_BLUE, radius=12)
+wall = game.add(create_rect(200, 150, 120, 24, color=colors.SLATE_GRAY))
+ball = game.add_circle(400, 300, 12, color=colors.CORNFLOWER_BLUE)
 physical_wall = game.add_rect(
-    200, 150, colors.SLATE_GRAY, 120, 24, collider=True
+    200, 150, 120, 24, color=colors.SLATE_GRAY, collider=True
 )
 wall.require_component(RectRenderer).color = colors.LIGHT_SLATE_GRAY
 ```
@@ -62,7 +62,7 @@ object's scale or affect its collider and child transforms. This keeps a
 child muzzle marker on the barrel:
 
 ```python
-muzzle = create_circle(22, 0, colors.RED, 1)
+muzzle = create_circle(22, 0, 1, color=colors.RED)
 sniper.add_child(muzzle)
 sniper.face_towards(game.input.mouse_position, offset=0)
 ```
@@ -107,7 +107,9 @@ bullet_speed = 1000
 
 def update(delta_time: float) -> None:
     if game.input.mouse_just_pressed():
-        bullet = game.add_circle(*player.world_position, colors.YELLOW, radius=3)
+        bullet = game.add_circle(
+            *player.world_position, radius=3, color=colors.YELLOW
+        )
         bullet.look_at(game.input.mouse_position)
         bullets.append(bullet)
 

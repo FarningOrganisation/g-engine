@@ -193,7 +193,12 @@ class CharacterControllerTests(unittest.TestCase):
         assert body is not None and collider is not None
         body.teleport(48, 63)
         self.game.add_rect(
-            48, 81.5, (255, 255, 255), 32, 20, collider=True
+            48,
+            81.5,
+            32,
+            20,
+            (255, 255, 255),
+            collider=True,
         )
         self.game.physics.refresh_contacts()
         objects, _ = self.game.physics._snap_to_ground(
@@ -227,9 +232,14 @@ class CharacterControllerTests(unittest.TestCase):
 
     def test_snap_ignores_sensors_and_respects_collision_mask(self) -> None:
         floor = self.game.add_rect(
-            160, 10, (255, 255, 255), 320, 20, collider=True
+            160,
+            10,
+            320,
+            20,
+            (255, 255, 255),
+            collider=True,
         )
-        player = self.game.add_rect(80, 30, (255, 255, 255), 20, 20)
+        player = self.game.add_rect(80, 30, 20, 20, (255, 255, 255))
         controller = player.add_platformer_motor()
         body, collider = player.body, floor.collider
         assert body is not None and collider is not None
@@ -250,9 +260,14 @@ class CharacterControllerTests(unittest.TestCase):
     def test_ground_snap_only_follows_nearby_ground(self) -> None:
         self.game.physics.gravity = (0, -600)
         self.game.add_rect(
-            160, 10, (255, 255, 255), 320, 20, collider=True
+            160,
+            10,
+            320,
+            20,
+            (255, 255, 255),
+            collider=True,
         )
-        player = self.game.add_rect(80, 30, (255, 255, 255), 20, 20)
+        player = self.game.add_rect(80, 30, 20, 20, (255, 255, 255))
         controller = player.add_platformer_motor(ground_snap_distance=8)
         self.game._update(0)
         body = player.body
@@ -272,9 +287,14 @@ class CharacterControllerTests(unittest.TestCase):
 
     def test_ground_snap_can_be_disabled(self) -> None:
         self.game.add_rect(
-            160, 10, (255, 255, 255), 320, 20, collider=True
+            160,
+            10,
+            320,
+            20,
+            (255, 255, 255),
+            collider=True,
         )
-        player = self.game.add_rect(80, 30, (255, 255, 255), 20, 20)
+        player = self.game.add_rect(80, 30, 20, 20, (255, 255, 255))
         controller = player.add_platformer_motor(ground_snap_distance=0)
         self.game._update(0)
         self.assertTrue(controller.grounded)
@@ -311,7 +331,7 @@ class CharacterControllerTests(unittest.TestCase):
     def test_ground_snap_distance_validation(self) -> None:
         for distance in (-1, float("nan"), float("inf")):
             with self.subTest(distance=distance):
-                player = self.game.add_rect(80, 80, (255, 255, 255), 20, 20)
+                player = self.game.add_rect(80, 80, 20, 20, (255, 255, 255))
                 with self.assertRaisesRegex(ValueError, "ground_snap_distance"):
                     player.add_platformer_motor(ground_snap_distance=distance)
 
@@ -319,9 +339,9 @@ class CharacterControllerTests(unittest.TestCase):
         player = self.game.add_rect(
             80,
             60,
+            20,
+            20,
             (255, 255, 255),
-            20,
-            20,
         )
         controller = player.add_top_down_motor(
             speed=100,
@@ -351,9 +371,9 @@ class CharacterControllerTests(unittest.TestCase):
         player = self.game.add_rect(
             80,
             100,
+            20,
+            20,
             (255, 255, 255),
-            20,
-            20,
         )
         player.add_top_down_motor()
 
@@ -366,9 +386,9 @@ class CharacterControllerTests(unittest.TestCase):
         player = self.game.add_rect(
             80,
             60,
+            20,
+            20,
             (255, 255, 255),
-            20,
-            20,
         )
         controller = player.add_top_down_motor(
             speed=100,
@@ -389,17 +409,17 @@ class CharacterControllerTests(unittest.TestCase):
         floor = self.game.add_rect(
             160,
             10,
-            (255, 255, 255),
             320,
             20,
+            (255, 255, 255),
             collider=True,
         )
         player = self.game.add_rect(
             80,
             30,
+            20,
+            20,
             (255, 255, 255),
-            20,
-            20,
         )
         controller = player.add_platformer_motor(
             speed=120,
@@ -425,9 +445,14 @@ class CharacterControllerTests(unittest.TestCase):
                     self.game = Game(320, 180)
                     self.game.physics.gravity = (0, -600)
                     self.game.add_rect(
-                        160, 10, (255, 255, 255), 320, 20, collider=True
+                        160,
+                        10,
+                        320,
+                        20,
+                        (255, 255, 255),
+                        collider=True,
                     )
-                    player = self.game.add_rect(80, 30, (255, 255, 255), 20, 20)
+                    player = self.game.add_rect(80, 30, 20, 20, (255, 255, 255))
                     motor = player.add_platformer_motor(
                         jump_speed=300, allow_double_jump=enabled,
                     )
@@ -452,9 +477,14 @@ class CharacterControllerTests(unittest.TestCase):
     def test_double_jump_resets_on_landing(self) -> None:
         self.game.physics.gravity = (0, -600)
         self.game.add_rect(
-            160, 10, (255, 255, 255), 320, 20, collider=True
+            160,
+            10,
+            320,
+            20,
+            (255, 255, 255),
+            collider=True,
         )
-        player = self.game.add_rect(80, 30, (255, 255, 255), 20, 20)
+        player = self.game.add_rect(80, 30, 20, 20, (255, 255, 255))
         motor = player.add_platformer_motor(jump_speed=300, allow_double_jump=True)
         self.game._update(0)
         for cycle in range(2):
@@ -476,9 +506,14 @@ class CharacterControllerTests(unittest.TestCase):
                 self.game = Game(320, 180)
                 self.game.physics.gravity = (0, -600)
                 self.game.add_rect(
-                    50, 10, (255, 255, 255), 100, 20, collider=True
+                    50,
+                    10,
+                    100,
+                    20,
+                    (255, 255, 255),
+                    collider=True,
                 )
-                player = self.game.add_rect(50, 30, (255, 255, 255), 20, 20)
+                player = self.game.add_rect(50, 30, 20, 20, (255, 255, 255))
                 motor = player.add_platformer_motor(
                     jump_speed=300, coyote_time=0.15, allow_double_jump=True,
                 )
@@ -502,9 +537,14 @@ class CharacterControllerTests(unittest.TestCase):
 
     def test_ground_jump_works_with_coyote_time_disabled(self) -> None:
         self.game.add_rect(
-            160, 10, (255, 255, 255), 320, 20, collider=True
+            160,
+            10,
+            320,
+            20,
+            (255, 255, 255),
+            collider=True,
         )
-        player = self.game.add_rect(80, 30, (255, 255, 255), 20, 20)
+        player = self.game.add_rect(80, 30, 20, 20, (255, 255, 255))
         motor = player.add_platformer_motor(coyote_time=0)
         self.game._update(0)
         self.assertTrue(motor.grounded)
@@ -515,9 +555,14 @@ class CharacterControllerTests(unittest.TestCase):
     def test_exhausted_double_jump_still_buffers_jump_on_landing(self) -> None:
         self.game.physics.gravity = (0, -600)
         self.game.add_rect(
-            160, 10, (255, 255, 255), 320, 20, collider=True
+            160,
+            10,
+            320,
+            20,
+            (255, 255, 255),
+            collider=True,
         )
-        player = self.game.add_rect(80, 30, (255, 255, 255), 20, 20)
+        player = self.game.add_rect(80, 30, 20, 20, (255, 255, 255))
         motor = player.add_platformer_motor(
             jump_speed=300, jump_buffer_time=0.35, allow_double_jump=True,
         )
@@ -546,9 +591,9 @@ class CharacterControllerTests(unittest.TestCase):
         player = self.game.add_rect(
             80,
             140,
+            20,
+            20,
             (255, 255, 255),
-            20,
-            20,
         )
         controller = player.add_platformer_motor(
             speed=100,
@@ -569,17 +614,17 @@ class CharacterControllerTests(unittest.TestCase):
         self.game.add_rect(
             50,
             10,
-            (255, 255, 255),
             100,
             20,
+            (255, 255, 255),
             collider=True,
         )
         player = self.game.add_rect(
             50,
             30,
+            20,
+            20,
             (255, 255, 255),
-            20,
-            20,
         )
         controller = player.add_platformer_motor(
             jump_speed=300,
@@ -600,17 +645,17 @@ class CharacterControllerTests(unittest.TestCase):
         self.game.add_rect(
             160,
             10,
-            (255, 255, 255),
             320,
             20,
+            (255, 255, 255),
             collider=True,
         )
         player = self.game.add_rect(
             80,
             45,
+            20,
+            20,
             (255, 255, 255),
-            20,
-            20,
         )
         controller = player.add_platformer_motor(
             jump_speed=300,
@@ -631,9 +676,9 @@ class CharacterControllerTests(unittest.TestCase):
         player = self.game.add_rect(
             80,
             60,
+            20,
+            20,
             (255, 255, 255),
-            20,
-            20,
         )
         player.add_top_down_motor()
 

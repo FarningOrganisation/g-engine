@@ -17,7 +17,8 @@ ComponentType = TypeVar("ComponentType", bound=Component)
 
 
 def create_rect(
-    x: float, y: float, color: Color, width: float, height: float,
+    x: float, y: float, width: float, height: float,
+    color: Color = (255, 255, 255),
     angle: float = 0, layer: int = 0, *, z_index: int | None = None,
     style: ShapeStyle | None = None, collider: bool = False,
 ) -> GameObject:
@@ -26,9 +27,9 @@ def create_rect(
     Args:
         x (float): Center x-coordinate in world pixels.
         y (float): Center y-coordinate in world pixels.
-        color (Color): Fill color.
         width (float): Rectangle width in pixels.
         height (float): Rectangle height in pixels.
+        color (Color): Fill color; defaults to white.
         angle (float): Rotation in degrees.
         layer (int): Legacy alias for ``z_index``.
         z_index (int | None): Drawing order; takes precedence over ``layer``.
@@ -46,7 +47,8 @@ def create_rect(
 
 
 def create_circle(
-    x: float, y: float, color: Color, radius: float,
+    x: float, y: float, radius: float,
+    color: Color = (255, 255, 255),
     angle: float = 0, layer: int = 0, *, z_index: int | None = None,
     style: ShapeStyle | None = None, collider: bool = False,
 ) -> GameObject:
@@ -55,8 +57,8 @@ def create_circle(
     Args:
         x (float): Center x-coordinate in world pixels.
         y (float): Center y-coordinate in world pixels.
-        color (Color): Circle fill color.
         radius (float): Circle radius in pixels.
+        color (Color): Circle fill color; defaults to white.
         angle (float): Rotation in degrees.
         layer (int): Legacy alias for ``z_index``.
         z_index (int | None): Drawing order; takes precedence over ``layer``.

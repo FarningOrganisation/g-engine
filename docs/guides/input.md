@@ -84,7 +84,7 @@ Presentation scaling maps the logical game viewport into the physical window;
 from g import Game, colors
 
 game = Game.from_grid(columns=40, rows=30, cell_size=20)
-player = game.grid.add_rect(4, 7, colors.WHITE)
+player = game.grid.add_rect(4, 7)
 game.grid.move(player, 5, 7)
 cell = game.grid.world_to_cell(*player.position)
 ```

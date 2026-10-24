@@ -67,7 +67,7 @@ class AnimationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.game = Game(200, 100)
         self.obj = self.game.add(
-            create_rect(0, 0, (255, 255, 255), 10, 10)
+            create_rect(0, 0, 10, 10, (255, 255, 255))
         )
 
     def test_animation_handle_controls_playback_and_completion(self) -> None:
@@ -199,7 +199,7 @@ class AnimationTests(unittest.TestCase):
 
     def test_animate_together_updates_multiple_objects(self) -> None:
         other = self.game.add(
-            create_rect(20, 0, (255, 255, 255), 10, 10)
+            create_rect(20, 0, 10, 10, (255, 255, 255))
         )
 
         handle = animate_together(self.obj, other).to(

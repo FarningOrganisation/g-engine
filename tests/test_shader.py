@@ -50,8 +50,8 @@ class ShaderTests(unittest.TestCase):
         circle = game.add_circle(
             50,
             50,
-            (255, 255, 255),
             10,
+            (255, 255, 255),
             style=ShapeStyle(outline=(255, 0, 0)),
         )
         renderer = circle.require_component(CircleRenderer)

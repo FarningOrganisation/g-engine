@@ -332,9 +332,9 @@ class PersistenceTests(unittest.TestCase):
             create_rect(
                 30,
                 40,
-                (20, 40, 60, 200),
                 20,
                 10,
+                (20, 40, 60, 200),
                 collider=True,
             )
         )
@@ -453,7 +453,7 @@ class PersistenceTests(unittest.TestCase):
 
     def test_round_trip_preserves_character_controller(self) -> None:
         scene = self.game.scenes.current
-        player = scene.add(create_rect(40, 50, (255, 255, 255), 20, 30))
+        player = scene.add(create_rect(40, 50, 20, 30, (255, 255, 255)))
         player.add_platformer_motor(
             speed=175,
             jump_speed=360,
@@ -483,7 +483,7 @@ class PersistenceTests(unittest.TestCase):
         self.assertTrue(body.fixed_rotation)
 
     def test_older_platformer_scene_defaults_ground_snap_distance(self) -> None:
-        player = self.game.add(create_rect(40, 50, (255, 255, 255), 20, 30))
+        player = self.game.add(create_rect(40, 50, 20, 30, (255, 255, 255)))
         player.add_platformer_motor()
         serializer = SceneSerializer(self.registry)
         document = serializer.capture(self.game.scenes.current, asset_root=".")
@@ -822,7 +822,7 @@ class PersistenceTests(unittest.TestCase):
 
     def test_removed_visual_renderer_does_not_leave_stale_alias_after_load(self) -> None:
         scene = self.game.scenes.current
-        visual = scene.add(create_rect(12, 18, (255, 255, 255), 20, 10))
+        visual = scene.add(create_rect(12, 18, 20, 10, (255, 255, 255)))
         renderer = visual.require_component(RectRenderer)
 
         self.assertFalse(hasattr(visual, "renderer"))
@@ -1012,7 +1012,7 @@ class PersistenceTests(unittest.TestCase):
         )
         scene.default_layer = background
         game_object = scene.add(
-            create_rect(10, 20, (255, 255, 255), 5, 5),
+            create_rect(10, 20, 5, 5, (255, 255, 255)),
             layer=background,
             z_index=-4,
         )

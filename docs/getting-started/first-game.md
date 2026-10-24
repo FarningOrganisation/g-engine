@@ -6,7 +6,7 @@ Save this as `main.py` in your game folder:
 from g import Game, Key, colors
 
 game = Game(800, 600, bg_color=(20, 24, 32))
-player = game.add_circle(400, 300, colors.CORNFLOWER_BLUE, radius=20)
+player = game.add_circle(400, 300, 20, color=colors.CORNFLOWER_BLUE)
 
 
 def update(delta_time: float) -> None:

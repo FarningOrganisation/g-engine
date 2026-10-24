@@ -147,23 +147,26 @@ class Grid:
         self,
         column: float,
         row: float,
-        color: Color,
         radius: float | None = None,
+        color: Color = (255, 255, 255),
         layer: LayerSelector | int | None = None,
         *,
         z_index: int | None = None,
         style: ShapeStyle | None = None,
         collider: bool = False,
     ) -> GameObject:
-        """Create a circle centered in a cell; default radius is half a cell."""
+        """Create a circle centered in a cell; radius defaults to half a cell.
+
+        ``color`` defaults to white.
+        """
         x, y = self.cell_center(column, row)
         target, order = self._placement(layer, z_index)
         return self.game.add(
             create_circle(
                 x,
                 y,
-                color,
                 self.cell_size / 2 if radius is None else radius,
+                color,
                 z_index=order or 0,
                 style=style,
                 collider=collider,
@@ -175,9 +178,9 @@ class Grid:
         self,
         column: float,
         row: float,
-        color: Color,
         width: float | None = None,
         height: float | None = None,
+        color: Color = (255, 255, 255),
         angle: float = 0,
         layer: LayerSelector | int | None = None,
         *,
@@ -185,16 +188,19 @@ class Grid:
         style: ShapeStyle | None = None,
         collider: bool = False,
     ) -> GameObject:
-        """Create a rectangle centered in a cell; omitted dimensions use cell size."""
+        """Create a rectangle centered in a cell; omitted dimensions use cell size.
+
+        ``color`` defaults to white.
+        """
         x, y = self.cell_center(column, row)
         target, order = self._placement(layer, z_index)
         return self.game.add(
             create_rect(
                 x,
                 y,
-                color,
                 self.cell_size if width is None else width,
                 self.cell_size if height is None else height,
+                color,
                 angle,
                 z_index=order or 0,
                 style=style,

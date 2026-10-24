@@ -37,13 +37,13 @@ class GameFactoryTests(unittest.TestCase):
         self.assertIn(game_object, self.game.objects)
 
     def test_shape_helpers_use_world_pixel_coordinates(self) -> None:
-        circle = self.game.add_circle(100, 120, (255, 255, 255), 12)
+        circle = self.game.add_circle(100, 120, 12, (255, 255, 255))
         rect = self.game.add_rect(
             200,
             220,
-            (255, 0, 0),
             40,
             30,
+            (255, 0, 0),
             angle=15,
         )
 
@@ -60,6 +60,26 @@ class GameFactoryTests(unittest.TestCase):
         self.assertEqual((renderer.width, renderer.height), (40, 30))
         self.assertEqual(rect.angle, 15)
         self.assert_added(rect)
+
+    def test_shape_helpers_default_to_white(self) -> None:
+        scene = self.game.scenes.current
+        shapes = (
+            (self.game.add_circle(10, 10, 5), CircleRenderer),
+            (self.game.add_rect(20, 20, 8, 6), RectRenderer),
+            (scene.add_circle(30, 30, 5), CircleRenderer),
+            (scene.add_rect(40, 40, 8, 6), RectRenderer),
+            (self.game.grid.add_circle(1, 1), CircleRenderer),
+            (self.game.grid.add_rect(2, 2), RectRenderer),
+            (create_circle(50, 50, 5), CircleRenderer),
+            (create_rect(60, 60, 8, 6), RectRenderer),
+        )
+
+        for shape, renderer_type in shapes:
+            with self.subTest(shape=type(shape).__name__):
+                self.assertEqual(
+                    shape.require_component(renderer_type).color,
+                    (255, 255, 255, 255),
+                )
 
     def test_image_and_text_helpers(self) -> None:
         image = Image.solid(8, 6, (255, 255, 255))
@@ -97,16 +117,25 @@ class GameFactoryTests(unittest.TestCase):
         image = Image.solid(8, 6, (255, 255, 255))
 
         visuals = (
-            self.game.add_circle(10, 10, (255, 255, 255), 5),
-            self.game.add_rect(20, 20, (255, 255, 255), 8, 6),
+            self.game.add_circle(10, 10, 5, (255, 255, 255)),
+            self.game.add_rect(20, 20, 8, 6, (255, 255, 255)),
             self.game.add_sprite(30, 30, image),
         )
         physical = (
             self.game.add_circle(
-                40, 40, (255, 255, 255), 5, collider=True
+                40,
+                40,
+                5,
+                (255, 255, 255),
+                collider=True,
             ),
             self.game.add_rect(
-                50, 50, (255, 255, 255), 8, 6, collider=True
+                50,
+                50,
+                8,
+                6,
+                (255, 255, 255),
+                collider=True,
             ),
             self.game.add_sprite(60, 60, image, collider=True),
         )
@@ -138,8 +167,8 @@ class GameFactoryTests(unittest.TestCase):
         self.assertIsInstance(sprite.collider, Collider)
 
     def test_stateful_game_object_helper(self) -> None:
-        idle = create_rect(10, 20, (255, 255, 255), 10, 10)
-        active = create_rect(10, 20, (255, 0, 0), 10, 10)
+        idle = create_rect(10, 20, 10, 10, (255, 255, 255))
+        active = create_rect(10, 20, 10, 10, (255, 0, 0))
 
         stateful = self.game.add_stateful_game_object(
             {"idle": idle, "active": active},
@@ -174,7 +203,7 @@ class GameFactoryTests(unittest.TestCase):
     def test_scene_exposes_the_same_pixel_factory_surface(self) -> None:
         scene = self.game.scenes.current
 
-        circle = scene.add_circle(30, 40, (255, 255, 255), 5)
+        circle = scene.add_circle(30, 40, 5, (255, 255, 255))
 
         self.assertEqual(circle.position, Vec2(30, 40))
         self.assert_added(circle)
@@ -187,13 +216,20 @@ class GameFactoryTests(unittest.TestCase):
         )
 
         circle = self.game.add_circle(
-            30, 40, (255, 255, 255), 5, style=style
+            30,
+            40,
+            5,
+            (255, 255, 255),
+            style=style,
         )
         triangle = self.game.add_triangle(
             (0, 0), (20, 0), (10, 20), style=style
         )
         grid_rect = self.game.grid.add_rect(
-            1, 2, (255, 255, 255), style=style
+            1,
+            2,
+            style=style,
+            color=(255, 255, 255),
         )
 
         for shape, renderer_type in (
@@ -209,8 +245,8 @@ class GameFactoryTests(unittest.TestCase):
     def test_root_factories_create_plain_composed_game_objects(self) -> None:
         image = Image.solid(8, 6, (255, 255, 255))
         objects = (
-            (create_circle(1, 2, (255, 255, 255), 3), CircleRenderer),
-            (create_rect(1, 2, (255, 255, 255), 3, 4), RectRenderer),
+            (create_circle(1, 2, 3, (255, 255, 255)), CircleRenderer),
+            (create_rect(1, 2, 3, 4, (255, 255, 255)), RectRenderer),
             (create_sprite(image, 1, 2), SpriteRenderer),
             (create_text("Score", 1, 2), TextRenderer),
             (create_line((0, 0), (1, 1)), LineRenderer),

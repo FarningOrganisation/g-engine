@@ -5,7 +5,7 @@ B_SPEED  = 1000
 
 spiel = g.Game(1200, 800)
 
-spieler = spiel.add_circle(600, 400, g.colors.WHITE, 40)
+spieler = spiel.add_circle(600, 400, 40, g.colors.WHITE)
 
 bullets: list[g.GameObject] = []
 
@@ -14,7 +14,7 @@ def update(delta_time):
     spieler.position.y += spiel.input.get_axis("y") * SPEED * delta_time
 
     if spiel.input.mouse_just_pressed():
-        bullet = spiel.add_circle(spieler.x, spieler.y, g.colors.YELLOW, 10)
+        bullet = spiel.add_circle(spieler.x, spieler.y, 10, g.colors.YELLOW)
         bullet.look_at(spiel.input.mouse_position)
         bullets.append(bullet)
 

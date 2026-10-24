@@ -75,8 +75,8 @@ player2 = game.add(
 ball = game.add_circle(
     GAME_WIDTH / 2,
     GAME_HEIGHT / 2,
-    (255, 255, 255),
     10,
+    (255, 255, 255),
     z_index=1,
     collider=True,
 )

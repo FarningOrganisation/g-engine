@@ -13,7 +13,7 @@ prefabs, tile maps, and the optional desktop editor.
 from g import Game, colors
 
 game = Game(800, 600, bg_color=(20, 24, 32))
-game.add_circle(400, 300, colors.CORNFLOWER_BLUE, radius=30)
+game.add_circle(400, 300, 30, color=colors.CORNFLOWER_BLUE)
 game.run(title="My Game")
 ```
 

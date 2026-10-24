@@ -9,10 +9,19 @@ class CollisionCallbackTests(unittest.TestCase):
     def setUp(self) -> None:
         self.game = Game(200, 100)
         self.first = self.game.add_rect(
-            50, 50, (255, 255, 255), 40, 40, collider=True
+            50,
+            50,
+            40,
+            40,
+            (255, 255, 255),
+            collider=True,
         )
         self.second = self.game.add_circle(
-            60, 50, (255, 255, 255), 10, collider=True
+            60,
+            50,
+            10,
+            (255, 255, 255),
+            collider=True,
         )
 
     def test_collision_begin_stay_and_end_callbacks(self) -> None:

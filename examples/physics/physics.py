@@ -65,9 +65,9 @@ class PhysicsPlayground:
         box = create_rect(
             x,
             y,
-            STATIC_COLOR,
             width,
             height,
+            STATIC_COLOR,
             angle=angle,
             z_index=1,
         )
@@ -80,7 +80,7 @@ class PhysicsPlayground:
             self.spawn_box(480 + index * 32, 430 + index * 36)
 
     def spawn_ball(self, x: float, y: float) -> GameObject:
-        ball = create_circle(x, y, BALL_COLOR, 13, z_index=2)
+        ball = create_circle(x, y, 13, BALL_COLOR, z_index=2)
         body = ball.add_physics(
             density=0.01,
             friction=0.6,
@@ -91,7 +91,7 @@ class PhysicsPlayground:
         return ball
 
     def spawn_box(self, x: float, y: float) -> GameObject:
-        box = create_rect(x, y, BOX_COLOR, 25, 25, z_index=2)
+        box = create_rect(x, y, 25, 25, BOX_COLOR, z_index=2)
         body = box.add_physics(
             density=0.01,
             friction=0.8,

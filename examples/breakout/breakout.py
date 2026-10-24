@@ -21,11 +21,11 @@ breakout.input.bind_axis("x", g.Key.A, g.Key.D)
 breakout.input.bind_axis("x2", g.Key.LEFT, g.Key.RIGHT)
 
 paddle = breakout.add_rect(
-    100, 20, (255, 255, 255), 100, 20, collider=True
+    100, 20, 100, 20, (255, 255, 255), collider=True
 )
 
 ball = breakout.add_circle(
-    200, 30, (255, 255, 255), 10, collider=True
+    200, 30, 10, (255, 255, 255), collider=True
 )
 ball_released = False
 ball_offset_x = 0
@@ -80,9 +80,9 @@ def load_level(level: str):
             block = breakout.add_rect(
                 100 + 50 * x + 5 * x,
                 300 + y * 20 + 5 * y,
-                block_color,
                 50,
                 20,
+                block_color,
                 collider=True,
             )
             block.properties["type"] = type

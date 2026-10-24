@@ -87,9 +87,9 @@ torch = game.add_point_light(
 wall = game.add_rect(
     400,
     200,
-    colors.SLATE_GRAY,
     128,
     32,
+    color=colors.SLATE_GRAY,
 )
 wall.add_component(ShadowOccluder2D.rectangle(128, 32))
 ```

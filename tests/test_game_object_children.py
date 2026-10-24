@@ -87,7 +87,7 @@ class GameObjectChildrenTests(unittest.TestCase):
         player = GameObject()
         player.name = "Player"
         group = Node()
-        visual = create_rect(0, 0, (255, 255, 255), 16, 16)
+        visual = create_rect(0, 0, 16, 16, (255, 255, 255))
         self.assertIs(type(visual), GameObject)
         visual.name = "Visual"
         player.add_child(group)

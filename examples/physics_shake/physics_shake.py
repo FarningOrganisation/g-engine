@@ -77,7 +77,7 @@ class WindowShakeDemo:
     def _add_wall(
         self, x: float, y: float, width: float, height: float
     ) -> None:
-        wall = create_rect(x, y, WALL_COLOR, width, height, z_index=1)
+        wall = create_rect(x, y, width, height, WALL_COLOR, z_index=1)
         wall.add_physics(BodyType.STATIC, friction=0.9, elasticity=0.25)
         self.game.add(wall)
 
@@ -91,9 +91,9 @@ class WindowShakeDemo:
                 game_object = create_rect(
                     x,
                     y,
+                    34,
+                    34,
                     BOX_COLORS[index % len(BOX_COLORS)],
-                    34,
-                    34,
                     angle=index * 7,
                     z_index=2,
                 )
@@ -106,8 +106,8 @@ class WindowShakeDemo:
                 game_object = create_circle(
                     x,
                     y,
-                    BALL_COLORS[index % len(BALL_COLORS)],
                     18,
+                    BALL_COLORS[index % len(BALL_COLORS)],
                     z_index=2,
                 )
                 body = game_object.add_physics(

@@ -68,10 +68,10 @@ class SceneLayerTests(unittest.TestCase):
     def test_named_layers_have_independent_roots_and_batches(self) -> None:
         foreground = self.scene.layers.add("Foreground")
         default_object = self.scene.add(
-            create_rect(10, 10, (255, 255, 255), 5, 5)
+            create_rect(10, 10, 5, 5, (255, 255, 255))
         )
         foreground_object = self.scene.add(
-            create_rect(20, 20, (255, 255, 255), 5, 5),
+            create_rect(20, 20, 5, 5, (255, 255, 255)),
             layer="Foreground",
             z_index=7,
         )
@@ -97,9 +97,9 @@ class SceneLayerTests(unittest.TestCase):
         game_object = self.scene.add_rect(
             10,
             10,
+            5,
+            5,
             (255, 255, 255),
-            5,
-            5,
             layer=4,
         )
 

@@ -41,7 +41,7 @@ frame. Drawing continues while normal scene and user updates pause, allowing a
 loading bar to remain responsive:
 
 ```python
-loading_bar = game.add_rect(400, 300, (255, 255, 255), 300, 20)
+loading_bar = game.add_rect(400, 300, 300, 20)
 loading_bar.scale_x = 0
 
 def show_progress(progress):

@@ -25,7 +25,7 @@ class RenderCullingTests(unittest.TestCase):
         self.layer = self.scene.default_layer
 
     def test_world_renderer_detaches_outside_camera_and_reattaches(self) -> None:
-        circle = self.game.add_circle(1000, 1000, (255, 255, 255), 10)
+        circle = self.game.add_circle(1000, 1000, 10, (255, 255, 255))
         renderer = circle.require_component(CircleRenderer)
 
         self.layer.draw(self.scene.camera)
@@ -74,8 +74,8 @@ class RenderCullingTests(unittest.TestCase):
         self.assertTrue(effect._vertex_lists)
 
     def test_scene_renderer_reports_submitted_and_culled_work(self) -> None:
-        self.game.add_circle(80, 60, (255, 255, 255), 10)
-        self.game.add_circle(1000, 1000, (255, 255, 255), 10)
+        self.game.add_circle(80, 60, 10, (255, 255, 255))
+        self.game.add_circle(1000, 1000, 10, (255, 255, 255))
         renderer = SceneRenderer()
         self.addCleanup(renderer.delete)
 

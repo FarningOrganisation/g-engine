@@ -35,7 +35,7 @@ class GridTests(unittest.TestCase):
 
     def test_grid_places_existing_object(self) -> None:
         game = Game.from_grid(10, 10, cell_size=20)
-        rect = create_rect(0, 0, (255, 255, 255), 10, 10)
+        rect = create_rect(0, 0, 10, 10, (255, 255, 255))
 
         result = game.grid.add(rect, 2, 3)
 
@@ -49,8 +49,8 @@ class GridTests(unittest.TestCase):
     def test_grid_factories_use_cell_defaults(self) -> None:
         game = Game.from_grid(10, 10, cell_size=20)
 
-        rect = game.grid.add_rect(2, 3, (255, 255, 255))
-        circle = game.grid.add_circle(4, 5, (255, 255, 255))
+        rect = game.grid.add_rect(2, 3, color=(255, 255, 255))
+        circle = game.grid.add_circle(4, 5, color=(255, 255, 255))
 
         rect_renderer = rect.require_component(RectRenderer)
         circle_renderer = circle.require_component(CircleRenderer)

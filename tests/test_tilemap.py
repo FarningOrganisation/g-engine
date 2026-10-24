@@ -505,9 +505,9 @@ class TileMapTests(unittest.TestCase):
         player = self.game.add_rect(
             8,
             26,
-            (255, 255, 255),
             12,
             20,
+            (255, 255, 255),
         )
         controller = player.add_platformer_motor()
 
@@ -528,9 +528,9 @@ class TileMapTests(unittest.TestCase):
         player = self.game.add_rect(
             24,
             18,
+            8,
+            8,
             (255, 255, 255),
-            8,
-            8,
             collider=True,
         )
         object_collision = Mock()

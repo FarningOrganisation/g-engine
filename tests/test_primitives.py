@@ -37,8 +37,8 @@ class PrimitiveTests(unittest.TestCase):
             outline_thickness=3,
         )
         shapes = (
-            create_circle(20, 20, (255, 255, 255), 10, style=style),
-            create_rect(20, 20, (255, 255, 255), 20, 10, style=style),
+            create_circle(20, 20, 10, (255, 255, 255), style=style),
+            create_rect(20, 20, 20, 10, (255, 255, 255), style=style),
             create_triangle((0, 0), (20, 0), (10, 20), style=style),
             create_polygon([(0, 0), (20, 0), (20, 20), (0, 20)], style=style),
         )
@@ -68,8 +68,8 @@ class PrimitiveTests(unittest.TestCase):
         circle = create_circle(
             10,
             20,
-            (1, 2, 3),
             5,
+            (1, 2, 3),
             style=ShapeStyle(
                 fill=(10, 20, 30),
                 outline=(40, 50, 60),
@@ -101,8 +101,8 @@ class PrimitiveTests(unittest.TestCase):
         circle = game.add_circle(
             20,
             30,
-            (255, 255, 255),
             10,
+            (255, 255, 255),
             style=ShapeStyle(outline=(255, 0, 0)),
         )
 

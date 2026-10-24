@@ -182,8 +182,8 @@ class RepeatingImageTests(unittest.TestCase):
 
     def test_background_respects_layer_order_and_screen_space_ui_is_still_last(self) -> None:
         background = self.game.add_background(Image.solid(1, 1, RED))
-        self.game.add_rect(0, 0, GREEN, 32, 24)
-        ui = self.game.add_rect(4, 4, BLUE, 4, 4)
+        self.game.add_rect(0, 0, 32, 24, GREEN)
+        ui = self.game.add_rect(4, 4, 4, 4, BLUE)
         ui.renderers[0].screen_space = True
         pixels = self.render()
         self.assertEqual(self.pixel(pixels, 0, 0), GREEN)

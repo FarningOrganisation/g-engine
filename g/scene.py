@@ -900,22 +900,25 @@ class Scene:
         self,
         x: float,
         y: float,
-        color: Color,
         radius: float,
+        color: Color = (255, 255, 255),
         layer: LayerSelector | int | None = None,
         *,
         z_index: int | None = None,
         style: ShapeStyle | None = None,
         collider: bool = False,
     ) -> GameObject:
-        """Create and add a circle centered at ``(x, y)`` in virtual pixels."""
+        """Create and add a circle centered at ``(x, y)`` in virtual pixels.
+
+        ``color`` defaults to white.
+        """
         target, order = self._placement(layer, z_index)
         return self.add(
             create_circle(
                 x,
                 y,
-                color,
                 radius,
+                color,
                 z_index=order or 0,
                 style=style,
                 collider=collider,
@@ -927,9 +930,9 @@ class Scene:
         self,
         x: float,
         y: float,
-        color: Color,
         width: float,
         height: float,
+        color: Color = (255, 255, 255),
         angle: float = 0,
         layer: LayerSelector | int | None = None,
         *,
@@ -937,15 +940,18 @@ class Scene:
         style: ShapeStyle | None = None,
         collider: bool = False,
     ) -> GameObject:
-        """Create and add a rectangle centered at ``(x, y)``; angle is degrees."""
+        """Create and add a rectangle centered at ``(x, y)``; angle is degrees.
+
+        ``color`` defaults to white.
+        """
         target, order = self._placement(layer, z_index)
         return self.add(
             create_rect(
                 x,
                 y,
-                color,
                 width,
                 height,
+                color,
                 angle,
                 z_index=order or 0,
                 style=style,

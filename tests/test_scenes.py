@@ -62,7 +62,7 @@ class SceneTests(unittest.TestCase):
         self.assertIs(self.game.grid, self.play.grid)
         self.assertIs(self.game.time, self.play.time)
 
-        rect = self.game.add(create_rect(10, 20, (255, 255, 255), 5, 5))
+        rect = self.game.add(create_rect(10, 20, 5, 5, (255, 255, 255)))
         self.assertIn(rect, self.play.objects)
 
     def test_only_current_scene_updates(self) -> None:

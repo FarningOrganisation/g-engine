@@ -61,9 +61,9 @@ class SnakeGame:
             self.game.grid.add_rect(
                 grid_x,
                 grid_y,
+                CELL_SIZE - 3,
+                CELL_SIZE - 3,
                 HEAD_COLOR if index == 0 else BODY_COLOR,
-                CELL_SIZE - 3,
-                CELL_SIZE - 3,
                 z_index=1,
             )
             for index, (grid_x, grid_y) in enumerate(self._body)
@@ -101,10 +101,10 @@ class SnakeGame:
             self._body.insert(0, new_head)
             segment = self.game.grid.add_rect(
                 *new_head,
-                BODY_COLOR,
                 CELL_SIZE - 3,
                 CELL_SIZE - 3,
                 z_index=1,
+                color=BODY_COLOR,
             )
             self._segments.insert(0, segment)
             self.score += 1
@@ -159,10 +159,10 @@ class SnakeGame:
         self._food_position = choice(free_positions)
         self._food = self.game.grid.add_rect(
             *self._food_position,
-            FOOD_COLOR,
             CELL_SIZE - 7,
             CELL_SIZE - 7,
             z_index=2,
+            color=FOOD_COLOR,
         )
 
     @staticmethod

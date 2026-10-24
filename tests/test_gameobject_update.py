@@ -141,7 +141,7 @@ class GameObjectUpdateTests(unittest.TestCase):
         self.game._update(0.1)
 
     def test_mutable_position_supports_rendering_and_physics(self) -> None:
-        obj = self.game.grid.add_rect(2, 3, (255, 255, 255), 20, 10)
+        obj = self.game.grid.add_rect(2, 3, 20, 10, (255, 255, 255))
         renderer = obj.require_component(RectRenderer)
         obj.position.x = 120
         obj.position.y = 150
