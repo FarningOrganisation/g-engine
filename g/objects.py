@@ -9,6 +9,7 @@ from .components import (
     SpriteAnimation, SpriteAnimator, TextRenderer, TriangleRenderer,
 )
 from .math import Vec2
+from .geometry import DashPattern
 from .nodes import GameObject
 from .resources import Animation, Color, Font, Image, ImageSource
 
@@ -153,6 +154,7 @@ def create_line(
     start: tuple[float, float], end: tuple[float, float],
     color: Color = (255, 255, 255), thickness: float = 1, layer: int = 0,
     *, z_index: int | None = None, screen_space: bool = False,
+    dash_pattern: DashPattern | None = None,
 ) -> GameObject:
     """Create a line object from two world-pixel endpoints.
 
@@ -164,10 +166,18 @@ def create_line(
         layer (int): Legacy alias for ``z_index``.
         z_index (int | None): Drawing order; takes precedence over ``layer``.
         screen_space (bool): Whether to ignore the camera transform.
+        dash_pattern (DashPattern | None): Optional positive dash and gap lengths.
     """
     center, points = _center_points((start, end))
     obj = GameObject(*center, z_index=layer if z_index is None else z_index)
-    obj.add_component(LineRenderer(points[0], points[1], color, thickness, screen_space=screen_space))
+    obj.add_component(LineRenderer(
+        points[0],
+        points[1],
+        color,
+        thickness,
+        dash_pattern=dash_pattern,
+        screen_space=screen_space,
+    ))
     return obj
 
 

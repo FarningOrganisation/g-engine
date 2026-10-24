@@ -64,6 +64,7 @@ GUI_CONTAINER_TYPES = {
     "grid",
     "anchor",
     "scroll",
+    "list_view",
 }
 COLLECTION_TILE_GID_CAPACITY = 256
 # Component types an object may carry several of (e.g. compound colliders).
@@ -644,6 +645,79 @@ def new_gui_element_record(
                 "value": 50,
             }
         )
+    elif kind == "progress_bar":
+        common.update(
+            {
+                "name": "Progress Bar",
+                "width": 200,
+                "height": 20,
+                "minimum": 0,
+                "maximum": 100,
+                "value": 50,
+                "background": [55, 60, 72, 255],
+                "fill": [75, 185, 105, 255],
+            }
+        )
+    elif kind == "image":
+        common.update(
+            {
+                "name": "Image",
+                "width": 160,
+                "height": 120,
+                "image": None,
+                "fit": "contain",
+            }
+        )
+    elif kind == "checkbox":
+        common.update(
+            {
+                "name": "Checkbox",
+                "width": 180,
+                "height": 28,
+                "text": "Checkbox",
+                "value": False,
+                "box": [70, 78, 96, 255],
+                "check": [235, 240, 255, 255],
+                "text_color": [235, 240, 255, 255],
+                "disabled": [90, 90, 95, 255],
+                "font": None,
+                "font_size": 14,
+            }
+        )
+    elif kind == "dropdown":
+        common.update(
+            {
+                "name": "Dropdown",
+                "width": 200,
+                "height": 36,
+                "options": ["Option 1", "Option 2", "Option 3"],
+                "selected_index": 0,
+                "background": [55, 65, 85, 255],
+                "options_color": [42, 50, 68, 255],
+                "selected_color": [75, 90, 120, 255],
+                "disabled": [65, 65, 65, 255],
+                "text_color": [255, 255, 255, 255],
+                "font": None,
+                "font_size": 14,
+            }
+        )
+    elif kind == "list_view":
+        common.update(
+            {
+                "name": "List View",
+                "width": 240,
+                "height": 160,
+                "selected_index": None,
+                "spacing": 4,
+                "selected_color": [75, 90, 120, 180],
+                "scroll_speed": 32,
+                "scrollbar_track": [38, 43, 55, 180],
+                "scrollbar_thumb": [105, 115, 140, 230],
+                "scrollbar_width": 10,
+                "minimum_thumb": 24,
+                "children": [],
+            }
+        )
     elif kind == "text_input":
         common.update(
             {
@@ -663,6 +737,10 @@ def new_gui_element_record(
                 "height": 160,
                 "scroll_speed": 32,
                 "horizontal": False,
+                "scrollbar_track": [38, 43, 55, 180],
+                "scrollbar_thumb": [105, 115, 140, 230],
+                "scrollbar_width": 10,
+                "minimum_thumb": 24,
                 "children": [],
             }
         )

@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 
 
 UpdateCallback: TypeAlias = Callable[[float], None]
+DrawCallback: TypeAlias = Callable[[], None]
 WindowMoveHandler: TypeAlias = Callable[[int, int, int, int], None]
 
 
@@ -55,6 +56,7 @@ class _PresentationSurface:
         clamp_texture_edges(self.texture)
         self.framebuffer = Framebuffer()
         self.framebuffer.attach_texture(self.texture)
+        self._sprite = pyglet.sprite.Sprite(self.texture)
         if not self.framebuffer.is_complete:
             status = self.framebuffer.get_status()
             self.delete()
@@ -101,7 +103,23 @@ class _PresentationSurface:
             gl.glViewport(*previous_viewport)
             window.projection = previous_projection
 
+    def present(self, rect: PresentationRect) -> None:
+        """Draw the virtual canvas through a persistent presentation sprite."""
+        position = (rect.x, rect.y, self._sprite.z)
+        if self._sprite.position != position:
+            self._sprite.position = position
+        scale_x = rect.width / self.width
+        scale_y = rect.height / self.height
+        if self._sprite.scale_x != scale_x:
+            self._sprite.scale_x = scale_x
+        if self._sprite.scale_y != scale_y:
+            self._sprite.scale_y = scale_y
+        self._sprite.draw()
+
     def delete(self) -> None:
+        sprite = getattr(self, "_sprite", None)
+        if sprite is not None:
+            sprite.delete()
         framebuffer = getattr(self, "framebuffer", None)
         if framebuffer is not None:
             framebuffer.delete()
@@ -115,6 +133,8 @@ class Window:
 
     Pointer coordinates delivered to game callbacks are converted to virtual
     canvas pixels; window-move callbacks use the window's screen coordinates.
+    Escape is delivered to the game instead of invoking pyglet's default
+    window-close behavior.
     """
 
     def __init__(
@@ -281,12 +301,7 @@ class Window:
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)
         surface.render(game, self._renderer, self._window)
         rect = self._presentation_rect()
-        surface.texture.blit(
-            rect.x,
-            rect.y,
-            width=rect.width,
-            height=rect.height,
-        )
+        surface.present(rect)
 
     def _presentation_rect(self) -> PresentationRect:
         if self._game is None:
@@ -344,15 +359,14 @@ class Window:
             ):
                 self.toggle_fullscreen()
                 return pyglet.event.EVENT_HANDLED
-            if symbol == key.ESCAPE and self.fullscreen:
-                self.set_fullscreen(False)
-                return pyglet.event.EVENT_HANDLED
             if symbol == key.M and modifiers & key.MOD_COMMAND and self.fullscreen:
                 self.set_fullscreen(False)
                 self._window.minimize()
                 return pyglet.event.EVENT_HANDLED
         if self._game is not None:
             self._game._handle_key_press(symbol, modifiers)
+            if symbol == pyglet.window.key.ESCAPE:
+                return pyglet.event.EVENT_HANDLED
 
     def _on_key_release(self, symbol: int, modifiers: int) -> None:
         if self._game is not None:
@@ -438,6 +452,8 @@ class Window:
         self,
         update: UpdateCallback | None = None,
         interval: float = 1 / 60,
+        *,
+        draw: DrawCallback | None = None,
     ) -> None:
         """Run the attached game's event loop with fixed-step updates.
 
@@ -445,6 +461,7 @@ class Window:
             update (UpdateCallback | None): Optional callback invoked after each game update with
                 ``delta_time`` in seconds.
             interval (float): Fixed simulation step in seconds.
+            draw (DrawCallback | None): Optional callback invoked once per rendered frame.
 
         Raises:
             RuntimeError: If no game is attached.
@@ -475,6 +492,8 @@ class Window:
             accumulator.advance(delta_time, simulation_update)
 
         self._game._start()
+        previous_draw_handler = self._game._draw_handler
+        self._game._draw_handler = draw
         driver = None
         try:
             if sys.platform == "darwin":
@@ -505,6 +524,7 @@ class Window:
                 finally:
                     self._interpolation = None
                     self._accumulator = None
+                    self._game._draw_handler = previous_draw_handler
                     try:
                         self._game._stop()
                     finally:

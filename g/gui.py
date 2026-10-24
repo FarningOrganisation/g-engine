@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from math import ceil
 from typing import TYPE_CHECKING, Literal, TypeVar, cast
@@ -21,7 +21,7 @@ from .behaviours import (
     Tween,
     Wait,
 )
-from .resources import Color, Font
+from .resources import Color, Font, Image as ResourceImage, source_of
 
 if TYPE_CHECKING:
     from .render_stats import _RenderStatsBuilder
@@ -32,7 +32,10 @@ ClickHandler = Callable[[], None]
 ToggleHandler = Callable[[bool], None]
 ValueHandler = Callable[[float], None]
 CommitHandler = Callable[[str], None]
+DropdownHandler = Callable[[int, str], None]
+ListSelectionHandler = Callable[[int, "Widget"], None]
 Padding = float | tuple[float, float] | tuple[float, float, float, float]
+ImageFit = Literal["contain", "cover", "stretch", "native"]
 
 
 def _rgba(color: Color) -> tuple[int, int, int, int]:
@@ -78,6 +81,56 @@ class TextInputStyle:
     background: Color = (255, 255, 255)
     text_color: Color = (0, 0, 0)
     caret_color: Color = (0, 0, 0)
+
+
+@dataclass(frozen=True)
+class ProgressBarStyle:
+    """Background and fill colors for progress bars."""
+
+    background: Color = (55, 60, 72)
+    fill: Color = (75, 185, 105)
+
+
+@dataclass(frozen=True)
+class CheckboxStyle:
+    """Box, checkmark, and label appearance for checkboxes."""
+
+    box: Color = (70, 78, 96)
+    check: Color = (235, 240, 255)
+    text_color: Color = (235, 240, 255)
+    disabled: Color = (90, 90, 95)
+    font: Font | None = None
+    font_size: float = 14
+
+
+@dataclass(frozen=True)
+class DropdownStyle:
+    """Closed field and expanded option-list appearance."""
+
+    background: Color = (55, 65, 85)
+    options: Color = (42, 50, 68)
+    selected: Color = (75, 90, 120)
+    disabled: Color = (65, 65, 65)
+    text_color: Color = (255, 255, 255)
+    font: Font | None = None
+    font_size: float = 14
+
+
+@dataclass(frozen=True)
+class ScrollbarStyle:
+    """Track and thumb appearance for vertical scrollbars."""
+
+    track: Color = (38, 43, 55, 180)
+    thumb: Color = (105, 115, 140, 230)
+    width: float = 10
+    minimum_thumb: float = 24
+
+
+@dataclass(frozen=True)
+class ListViewStyle:
+    """Selection highlight appearance for list views."""
+
+    selected: Color = (75, 90, 120, 180)
 
 
 class WidgetAnimationHandle:
@@ -623,6 +676,59 @@ class Widget:
             scale_y=visual.scale_y,
             opacity=visual.opacity,
         ).start()
+
+
+class _ScissorGroup(pyglet.graphics.Group):
+    def __init__(
+        self,
+        owner: Widget,
+        *,
+        parent: pyglet.graphics.Group | None = None,
+    ) -> None:
+        super().__init__(parent=parent)
+        self.owner = owner
+        self._previous_enabled = False
+        self._previous_box = (0, 0, 0, 0)
+
+    def set_state(self) -> None:
+        left, bottom, right, top = self.owner.presented_bounds
+        self._previous_enabled = bool(
+            pyglet.gl.glIsEnabled(pyglet.gl.GL_SCISSOR_TEST)
+        )
+        previous = (pyglet.gl.GLint * 4)()
+        pyglet.gl.glGetIntegerv(pyglet.gl.GL_SCISSOR_BOX, previous)
+        self._previous_box = tuple(previous)
+        own_left = round(left)
+        own_bottom = round(bottom)
+        own_right = round(right)
+        own_top = round(top)
+        if self._previous_enabled:
+            previous_left, previous_bottom, previous_width, previous_height = (
+                self._previous_box
+            )
+            own_left = max(own_left, previous_left)
+            own_bottom = max(own_bottom, previous_bottom)
+            own_right = min(
+                own_right,
+                previous_left + previous_width,
+            )
+            own_top = min(
+                own_top,
+                previous_bottom + previous_height,
+            )
+        pyglet.gl.glEnable(pyglet.gl.GL_SCISSOR_TEST)
+        pyglet.gl.glScissor(
+            own_left,
+            own_bottom,
+            max(0, own_right - own_left),
+            max(0, own_top - own_bottom),
+        )
+
+    def unset_state(self) -> None:
+        if self._previous_enabled:
+            pyglet.gl.glScissor(*self._previous_box)
+        else:
+            pyglet.gl.glDisable(pyglet.gl.GL_SCISSOR_TEST)
 
 
 WidgetType = TypeVar("WidgetType", bound=Widget)
@@ -1451,6 +1557,11 @@ class UITheme:
     button: ButtonStyle = field(default_factory=ButtonStyle)
     slider: SliderStyle = field(default_factory=SliderStyle)
     text_input: TextInputStyle = field(default_factory=TextInputStyle)
+    progress_bar: ProgressBarStyle = field(default_factory=ProgressBarStyle)
+    checkbox: CheckboxStyle = field(default_factory=CheckboxStyle)
+    dropdown: DropdownStyle = field(default_factory=DropdownStyle)
+    scrollbar: ScrollbarStyle = field(default_factory=ScrollbarStyle)
+    list_view: ListViewStyle = field(default_factory=ListViewStyle)
     button_interaction: InteractionStyle = field(
         default_factory=InteractionStyle
     )
@@ -1832,6 +1943,600 @@ class Slider(Widget):
         return True
 
 
+class ProgressBar(Widget):
+    """Display a clamped numeric value as a horizontal fill bar."""
+
+    def __init__(
+        self,
+        minimum: float = 0,
+        maximum: float = 1,
+        value: float = 0,
+        *,
+        style: ProgressBarStyle | None = None,
+        width: float | None = 200,
+        height: float | None = 20,
+        **kwargs,
+    ) -> None:
+        if maximum <= minimum:
+            raise ValueError("progress bar maximum must be greater than minimum")
+        super().__init__(width=width, height=height, **kwargs)
+        self.minimum = minimum
+        self.maximum = maximum
+        self._value = min(maximum, max(minimum, value))
+        self.style = style or ProgressBarStyle()
+        self._uses_theme = style is None
+        self._background: pyglet.shapes.Rectangle | None = None
+        self._fill: pyglet.shapes.Rectangle | None = None
+
+    @property
+    def value(self) -> float:
+        """Current value, clamped to the configured range."""
+        return self._value
+
+    @value.setter
+    def value(self, value: float) -> None:
+        """Clamp and assign the current value."""
+        self._value = min(self.maximum, max(self.minimum, value))
+        self._sync_drawables()
+
+    def _bind(
+        self,
+        view: UIView,
+        parent_group: pyglet.graphics.Group | None = None,
+    ) -> None:
+        if self._uses_theme:
+            self.style = view.theme.progress_bar
+        super()._bind(view, parent_group)
+
+    def preferred_size(self) -> tuple[float, float]:
+        """Return the default progress-bar dimensions."""
+        return 200, 20
+
+    def _create_drawables(self, batch, group) -> None:
+        self._background = pyglet.shapes.Rectangle(
+            0, 0, 0, 0, batch=batch, group=group
+        )
+        self._fill = pyglet.shapes.Rectangle(
+            0,
+            0,
+            0,
+            0,
+            batch=batch,
+            group=pyglet.graphics.Group(order=self.layer + 1, parent=group),
+        )
+        self._sync_drawables()
+
+    def _sync_drawables(self) -> None:
+        if self._background is None or self._fill is None:
+            return
+        left, bottom, right, top = self.presented_bounds
+        ratio = (self._value - self.minimum) / (
+            self.maximum - self.minimum
+        )
+        for shape, color, width in (
+            (self._background, self.style.background, right - left),
+            (self._fill, self.style.fill, (right - left) * ratio),
+        ):
+            rgba = _rgba(color)
+            shape.position = left, bottom
+            shape.width = width
+            shape.height = top - bottom
+            shape.color = rgba[:3]
+            shape.opacity = round(
+                rgba[3] * self.effective_opacity / 255
+            )
+            shape.visible = self.visible_in_hierarchy
+
+
+class UIImage(Widget):
+    """Display an image resource using contain, cover, stretch, or native fit."""
+
+    def __init__(
+        self,
+        image: ResourceImage | None,
+        *,
+        fit: ImageFit = "contain",
+        width: float | None = None,
+        height: float | None = None,
+        **kwargs,
+    ) -> None:
+        if fit not in {"contain", "cover", "stretch", "native"}:
+            raise ValueError(
+                "image fit must be 'contain', 'cover', 'stretch', or 'native'"
+            )
+        super().__init__(width=width, height=height, **kwargs)
+        self.image = image
+        self.fit: ImageFit = fit
+        self._sprite: pyglet.sprite.Sprite | None = None
+        self._clip_group: _ScissorGroup | None = None
+
+    def preferred_size(self) -> tuple[float, float]:
+        """Return the source image dimensions, or zero without an image."""
+        return (
+            (0, 0)
+            if self.image is None
+            else (self.image.width, self.image.height)
+        )
+
+    def _create_drawables(self, batch, group) -> None:
+        source = None if self.image is None else source_of(self.image)
+        if source is None:
+            return
+        self._clip_group = _ScissorGroup(self, parent=group)
+        self._sprite = pyglet.sprite.Sprite(
+            source,
+            batch=batch,
+            group=self._clip_group,
+        )
+        self._sync_drawables()
+
+    def _sync_drawables(self) -> None:
+        if self._sprite is None:
+            return
+        source = self._sprite.image
+        left, bottom, right, top = self.presented_bounds
+        available_width = right - left
+        available_height = top - bottom
+        if source.width <= 0 or source.height <= 0:
+            self._sprite.visible = False
+            return
+        if self.fit == "stretch":
+            scale_x = available_width / source.width
+            scale_y = available_height / source.height
+        elif self.fit == "native":
+            scale_x = scale_y = self.ui_scale
+        else:
+            ratio = (
+                min
+                if self.fit == "contain"
+                else max
+            )(
+                available_width / source.width,
+                available_height / source.height,
+            )
+            scale_x = scale_y = ratio
+        drawn_width = source.width * scale_x
+        drawn_height = source.height * scale_y
+        image_left = left + (available_width - drawn_width) / 2
+        image_bottom = bottom + (available_height - drawn_height) / 2
+        self._sprite.scale_x = scale_x
+        self._sprite.scale_y = scale_y
+        self._sprite.position = (
+            image_left + source.anchor_x * scale_x,
+            image_bottom + source.anchor_y * scale_y,
+            self._sprite.z,
+        )
+        self._sprite.opacity = self.effective_opacity
+        self._sprite.visible = self.visible_in_hierarchy
+
+
+class Checkbox(Widget):
+    """Focusable boolean checkbox with an optional text label."""
+
+    def __init__(
+        self,
+        text: str = "",
+        value: bool = False,
+        on_change: ToggleHandler | None = None,
+        *,
+        style: CheckboxStyle | None = None,
+        width: float | None = 180,
+        height: float | None = 28,
+        **kwargs,
+    ) -> None:
+        kwargs.setdefault("focusable", True)
+        super().__init__(width=width, height=height, **kwargs)
+        self.text = text
+        self.value = value
+        self.on_change = on_change
+        self.style = style or CheckboxStyle()
+        self._uses_theme = style is None
+        self.pressed = False
+        self._box: pyglet.shapes.Rectangle | None = None
+        self._check: pyglet.shapes.Rectangle | None = None
+        self._label: pyglet.text.Label | None = None
+
+    def _bind(
+        self,
+        view: UIView,
+        parent_group: pyglet.graphics.Group | None = None,
+    ) -> None:
+        if self._uses_theme:
+            self.style = view.theme.checkbox
+        if self.interaction is None:
+            self.interaction = view.theme.button_interaction
+        super()._bind(view, parent_group)
+
+    def preferred_size(self) -> tuple[float, float]:
+        """Return the default checkbox dimensions."""
+        return 180, 28
+
+    def _create_drawables(self, batch, group) -> None:
+        self._box = pyglet.shapes.Rectangle(
+            0, 0, 0, 0, batch=batch, group=group
+        )
+        foreground = pyglet.graphics.Group(
+            order=self.layer + 1,
+            parent=group,
+        )
+        self._check = pyglet.shapes.Rectangle(
+            0, 0, 0, 0, batch=batch, group=foreground
+        )
+        self._label = pyglet.text.Label(
+            self.text,
+            font_name=(
+                None if self.style.font is None else self.style.font.family
+            ),
+            font_size=self.style.font_size,
+            color=self.style.text_color,
+            anchor_x="left",
+            anchor_y="center",
+            batch=batch,
+            group=foreground,
+        )
+        self._sync_drawables()
+
+    def _sync_drawables(self) -> None:
+        if self._box is None or self._check is None or self._label is None:
+            return
+        left, bottom, _, top = self.presented_bounds
+        size = min(top - bottom, 20 * self.ui_scale)
+        box_color = _rgba(
+            self.style.box
+            if self.enabled_in_hierarchy
+            else self.style.disabled
+        )
+        self._box.position = left, (bottom + top - size) / 2
+        self._box.width = self._box.height = size
+        self._box.color = box_color[:3]
+        self._box.opacity = round(
+            box_color[3] * self.effective_opacity / 255
+        )
+        inset = 5 * self.ui_scale
+        check_color = _rgba(self.style.check)
+        self._check.position = (
+            self._box.x + inset,
+            self._box.y + inset,
+        )
+        self._check.width = self._check.height = max(0, size - inset * 2)
+        self._check.color = check_color[:3]
+        self._check.opacity = round(
+            check_color[3] * self.effective_opacity / 255
+        )
+        self._check.visible = self.visible_in_hierarchy and self.value
+        self._box.visible = self.visible_in_hierarchy
+        self._label.position = (
+            left + size + 8 * self.ui_scale,
+            (bottom + top) / 2,
+            0,
+        )
+        self._label.text = self.text
+        self._label.color = (
+            *_rgba(self.style.text_color)[:3],
+            self.effective_opacity,
+        )
+        self._label.visible = self.visible_in_hierarchy
+
+    def _activate(self) -> None:
+        self.value = not self.value
+        self._update_interaction_state()
+        self._sync_drawables()
+        if self.on_change is not None:
+            self.on_change(self.value)
+
+    def on_pointer_press(
+        self, x: float, y: float, button: int, modifiers: int
+    ) -> bool:
+        """Begin a left-button checkbox activation."""
+        del x, y, modifiers
+        if button != mouse.LEFT:
+            return False
+        self.pressed = True
+        self._capturing_pointer = True
+        self._update_interaction_state()
+        return True
+
+    def on_pointer_release(
+        self, x: float, y: float, button: int, modifiers: int
+    ) -> bool:
+        """Toggle after a captured pointer release inside the checkbox."""
+        del button, modifiers
+        activate = self.pressed and self.hit_test(x, y) is self
+        self.pressed = False
+        self._capturing_pointer = False
+        if activate:
+            self._activate()
+        else:
+            self._update_interaction_state()
+        return True
+
+    def on_key_release(self, symbol: int, modifiers: int) -> bool:
+        """Toggle when Enter, Return, or Space is released."""
+        del modifiers
+        if symbol not in (key.ENTER, key.RETURN, key.SPACE):
+            return False
+        self._activate()
+        return True
+
+
+class Dropdown(Widget):
+    """Focusable single-selection dropdown containing text options."""
+
+    def __init__(
+        self,
+        options: Sequence[str],
+        selected_index: int | None = 0,
+        on_change: DropdownHandler | None = None,
+        *,
+        style: DropdownStyle | None = None,
+        width: float | None = 200,
+        height: float | None = 36,
+        **kwargs,
+    ) -> None:
+        if any(not isinstance(option, str) for option in options):
+            raise TypeError("dropdown options must be strings")
+        if selected_index is not None and not 0 <= selected_index < len(options):
+            raise ValueError("dropdown selected index is out of range")
+        kwargs.setdefault("focusable", True)
+        super().__init__(width=width, height=height, **kwargs)
+        self.options = list(options)
+        self.selected_index = selected_index
+        self.on_change = on_change
+        self.style = style or DropdownStyle()
+        self._uses_theme = style is None
+        self.open = False
+        self.pressed = False
+        self._background: pyglet.shapes.Rectangle | None = None
+        self._label: pyglet.text.Label | None = None
+        self._arrow: pyglet.text.Label | None = None
+        self._option_backgrounds: list[pyglet.shapes.Rectangle] = []
+        self._option_labels: list[pyglet.text.Label] = []
+
+    @property
+    def value(self) -> str | None:
+        """Selected option text, or ``None`` when nothing is selected."""
+        return (
+            None
+            if self.selected_index is None
+            else self.options[self.selected_index]
+        )
+
+    def _bind(
+        self,
+        view: UIView,
+        parent_group: pyglet.graphics.Group | None = None,
+    ) -> None:
+        if self._uses_theme:
+            self.style = view.theme.dropdown
+        if self.interaction is None:
+            self.interaction = view.theme.button_interaction
+        super()._bind(view, parent_group)
+
+    def preferred_size(self) -> tuple[float, float]:
+        """Return the default closed dropdown dimensions."""
+        return 200, 36
+
+    def _create_drawables(self, batch, group) -> None:
+        self._background = pyglet.shapes.Rectangle(
+            0, 0, 0, 0, batch=batch, group=group
+        )
+        foreground = pyglet.graphics.Group(
+            order=self.layer + 1,
+            parent=group,
+        )
+        popup = pyglet.graphics.Group(
+            order=self.layer + 20,
+            parent=group,
+        )
+        font_name = (
+            None if self.style.font is None else self.style.font.family
+        )
+        self._label = pyglet.text.Label(
+            "",
+            font_name=font_name,
+            font_size=self.style.font_size,
+            color=self.style.text_color,
+            anchor_x="left",
+            anchor_y="center",
+            batch=batch,
+            group=foreground,
+        )
+        self._arrow = pyglet.text.Label(
+            "v",
+            font_name=font_name,
+            font_size=self.style.font_size,
+            color=self.style.text_color,
+            anchor_x="center",
+            anchor_y="center",
+            batch=batch,
+            group=foreground,
+        )
+        for option in self.options:
+            self._option_backgrounds.append(
+                pyglet.shapes.Rectangle(
+                    0, 0, 0, 0, batch=batch, group=popup
+                )
+            )
+            self._option_labels.append(
+                pyglet.text.Label(
+                    option,
+                    font_name=font_name,
+                    font_size=self.style.font_size,
+                    color=self.style.text_color,
+                    anchor_x="left",
+                    anchor_y="center",
+                    batch=batch,
+                    group=pyglet.graphics.Group(
+                        order=self.layer + 21,
+                        parent=group,
+                    ),
+                )
+            )
+        self._sync_drawables()
+
+    def _opens_upward(self) -> bool:
+        return self.y < self.height * len(self.options)
+
+    def _option_bounds(
+        self, index: int
+    ) -> tuple[float, float, float, float]:
+        if self._opens_upward():
+            bottom = self.y + self.height * (index + 1)
+        else:
+            bottom = self.y - self.height * (index + 1)
+        return self.x, bottom, self.x + self.width, bottom + self.height
+
+    def _option_at(self, x: float, y: float) -> int | None:
+        local = self._inverse_transform_point(x, y)
+        if local is None:
+            return None
+        local_x, local_y = local
+        for index in range(len(self.options)):
+            left, bottom, right, top = self._option_bounds(index)
+            if left <= local_x <= right and bottom <= local_y <= top:
+                return index
+        return None
+
+    def hit_test(self, x: float, y: float) -> Widget | None:
+        """Hit-test the closed field and visible expanded options."""
+        target = super().hit_test(x, y)
+        if target is not None or not self.open:
+            return target
+        return self if self._option_at(x, y) is not None else None
+
+    def _sync_drawables(self) -> None:
+        if self._background is None or self._label is None or self._arrow is None:
+            return
+        left, bottom, right, top = self.presented_bounds
+        color = _rgba(
+            self.style.background
+            if self.enabled_in_hierarchy
+            else self.style.disabled
+        )
+        self._background.position = left, bottom
+        self._background.width = right - left
+        self._background.height = top - bottom
+        self._background.color = color[:3]
+        self._background.opacity = round(
+            color[3] * self.effective_opacity / 255
+        )
+        self._background.visible = self.visible_in_hierarchy
+        self._label.position = (
+            left + 10 * self.ui_scale,
+            (bottom + top) / 2,
+            0,
+        )
+        self._label.text = self.value or ""
+        self._arrow.position = (
+            right - 14 * self.ui_scale,
+            (bottom + top) / 2,
+            0,
+        )
+        for label in (self._label, self._arrow):
+            label.color = (
+                *_rgba(self.style.text_color)[:3],
+                self.effective_opacity,
+            )
+            label.visible = self.visible_in_hierarchy
+        for index, (background, label) in enumerate(
+            zip(self._option_backgrounds, self._option_labels)
+        ):
+            option_left, option_bottom, option_right, option_top = (
+                self._option_bounds(index)
+            )
+            first = self._transform_point(option_left, option_bottom)
+            second = self._transform_point(option_right, option_top)
+            option_color = _rgba(
+                self.style.selected
+                if index == self.selected_index
+                else self.style.options
+            )
+            background.position = first
+            background.width = second[0] - first[0]
+            background.height = second[1] - first[1]
+            background.color = option_color[:3]
+            background.opacity = round(
+                option_color[3] * self.effective_opacity / 255
+            )
+            background.visible = self.visible_in_hierarchy and self.open
+            label.position = (
+                first[0] + 10 * self.ui_scale,
+                (first[1] + second[1]) / 2,
+                0,
+            )
+            label.color = (
+                *_rgba(self.style.text_color)[:3],
+                self.effective_opacity,
+            )
+            label.visible = self.visible_in_hierarchy and self.open
+
+    def _select(self, index: int) -> None:
+        if index == self.selected_index:
+            return
+        self.selected_index = index
+        self._sync_drawables()
+        if self.on_change is not None:
+            self.on_change(index, self.options[index])
+
+    def set_focus(self, focused: bool) -> None:
+        """Update focus and close the option list when focus leaves."""
+        super().set_focus(focused)
+        if not focused and self.open:
+            self.open = False
+            self._sync_drawables()
+
+    def on_pointer_press(
+        self, x: float, y: float, button: int, modifiers: int
+    ) -> bool:
+        """Capture a left-button press for field or option activation."""
+        del x, y, modifiers
+        if button != mouse.LEFT:
+            return False
+        self.pressed = True
+        self._capturing_pointer = True
+        return True
+
+    def on_pointer_release(
+        self, x: float, y: float, button: int, modifiers: int
+    ) -> bool:
+        """Toggle the popup or select the released option."""
+        del button, modifiers
+        option = self._option_at(x, y) if self.open else None
+        if option is not None:
+            self._select(option)
+            self.open = False
+        elif super().hit_test(x, y) is self:
+            self.open = not self.open
+        else:
+            self.open = False
+        self.pressed = False
+        self._capturing_pointer = False
+        self._sync_drawables()
+        return True
+
+    def on_key_press(self, symbol: int, modifiers: int) -> bool:
+        """Open, close, or change selection with the keyboard."""
+        del modifiers
+        if symbol in (key.ENTER, key.RETURN, key.SPACE):
+            self.open = not self.open
+            self._sync_drawables()
+            return True
+        if symbol == key.ESCAPE and self.open:
+            self.open = False
+            self._sync_drawables()
+            return True
+        if not self.options or symbol not in (key.UP, key.DOWN):
+            return False
+        index = self.selected_index if self.selected_index is not None else 0
+        index = (
+            max(0, index - 1)
+            if symbol == key.UP
+            else min(len(self.options) - 1, index + 1)
+        )
+        self._select(index)
+        return True
+
+
 class TextInput(Widget):
     """Focusable text field that commits edited text through a callback.
 
@@ -2005,30 +2710,6 @@ class TextInput(Widget):
         return True
 
 
-class _ScissorGroup(pyglet.graphics.Group):
-    def __init__(
-        self,
-        owner: Widget,
-        *,
-        parent: pyglet.graphics.Group | None = None,
-    ) -> None:
-        super().__init__(parent=parent)
-        self.owner = owner
-
-    def set_state(self) -> None:
-        left, bottom, right, top = self.owner.presented_bounds
-        pyglet.gl.glEnable(pyglet.gl.GL_SCISSOR_TEST)
-        pyglet.gl.glScissor(
-            round(left),
-            round(bottom),
-            max(0, round(right - left)),
-            max(0, round(top - bottom)),
-        )
-
-    def unset_state(self) -> None:
-        pyglet.gl.glDisable(pyglet.gl.GL_SCISSOR_TEST)
-
-
 class ScrollView(Container):
     """Clip and scroll a single child within the view's bounds.
 
@@ -2048,6 +2729,7 @@ class ScrollView(Container):
         *,
         scroll_speed: float = 32,
         horizontal: bool = False,
+        scrollbar_style: ScrollbarStyle | None = None,
         **kwargs,
     ) -> None:
         """Initialize a clipped viewport and optional content child."""
@@ -2059,7 +2741,12 @@ class ScrollView(Container):
         self.horizontal = horizontal
         self.scroll_x = 0.0
         self.scroll_y = 0.0
+        self.scrollbar_style = scrollbar_style or ScrollbarStyle()
+        self._uses_theme_scrollbar = scrollbar_style is None
         self._scissor_group: _ScissorGroup | None = None
+        self._scrollbar_track: pyglet.shapes.Rectangle | None = None
+        self._scrollbar_thumb: pyglet.shapes.Rectangle | None = None
+        self._scrollbar_drag_offset = 0.0
 
     @property
     def child(self) -> Widget | None:
@@ -2093,12 +2780,88 @@ class ScrollView(Container):
         view: UIView,
         parent_group: pyglet.graphics.Group | None = None,
     ) -> None:
+        if self._uses_theme_scrollbar:
+            self.scrollbar_style = view.theme.scrollbar
         Widget._bind(self, view, parent_group)
         base_group = view.group_for(self.layer, parent_group)
         self._scissor_group = _ScissorGroup(self, parent=base_group)
         self._content_group = self._scissor_group
         for child in self._children:
             child._bind(view, self._scissor_group)
+
+    def _create_drawables(self, batch, group) -> None:
+        scrollbar_group = pyglet.graphics.Group(
+            order=self.layer + 2,
+            parent=group,
+        )
+        self._scrollbar_track = pyglet.shapes.Rectangle(
+            0, 0, 0, 0, batch=batch, group=scrollbar_group
+        )
+        self._scrollbar_thumb = pyglet.shapes.Rectangle(
+            0,
+            0,
+            0,
+            0,
+            batch=batch,
+            group=pyglet.graphics.Group(
+                order=self.layer + 3,
+                parent=group,
+            ),
+        )
+        self._sync_drawables()
+
+    @property
+    def scrollbar_visible(self) -> bool:
+        """Whether vertical content overflow currently needs a scrollbar."""
+        return not self.horizontal and self.max_scroll_y > 0
+
+    def _thumb_bounds(self) -> tuple[float, float, float, float]:
+        left, bottom, right, top = self.presented_bounds
+        width = self.scrollbar_style.width * self.ui_scale
+        track_height = top - bottom
+        child = self.child
+        if child is None or child.height <= 0:
+            return right - width, top, right, top
+        thumb_height = max(
+            self.scrollbar_style.minimum_thumb * self.ui_scale,
+            track_height * min(1, self.height / child.height),
+        )
+        travel = max(0, track_height - thumb_height)
+        ratio = (
+            0
+            if self.max_scroll_y == 0
+            else self.scroll_y / self.max_scroll_y
+        )
+        thumb_bottom = top - thumb_height - travel * ratio
+        return right - width, thumb_bottom, right, thumb_bottom + thumb_height
+
+    def _sync_drawables(self) -> None:
+        if self._scrollbar_track is None or self._scrollbar_thumb is None:
+            return
+        left, bottom, right, top = self.presented_bounds
+        width = self.scrollbar_style.width * self.ui_scale
+        track_color = _rgba(self.scrollbar_style.track)
+        self._scrollbar_track.position = right - width, bottom
+        self._scrollbar_track.width = width
+        self._scrollbar_track.height = top - bottom
+        self._scrollbar_track.color = track_color[:3]
+        self._scrollbar_track.opacity = round(
+            track_color[3] * self.effective_opacity / 255
+        )
+        thumb_left, thumb_bottom, thumb_right, thumb_top = (
+            self._thumb_bounds()
+        )
+        thumb_color = _rgba(self.scrollbar_style.thumb)
+        self._scrollbar_thumb.position = thumb_left, thumb_bottom
+        self._scrollbar_thumb.width = thumb_right - thumb_left
+        self._scrollbar_thumb.height = thumb_top - thumb_bottom
+        self._scrollbar_thumb.color = thumb_color[:3]
+        self._scrollbar_thumb.opacity = round(
+            thumb_color[3] * self.effective_opacity / 255
+        )
+        visible = self.visible_in_hierarchy and self.scrollbar_visible
+        self._scrollbar_track.visible = visible
+        self._scrollbar_thumb.visible = visible
 
     def preferred_size(self) -> tuple[float, float]:
         """Return the preferred size of the content widget."""
@@ -2124,12 +2887,20 @@ class ScrollView(Container):
         )
         self.scroll_x = min(self.scroll_x, max(0, child_width - width))
         self.scroll_y = min(self.scroll_y, max(0, child_height - height))
+        content_width = width
+        if not self.horizontal and child_height > height:
+            content_width = max(0, width - self.scrollbar_style.width)
         child.arrange(
             x - self.scroll_x,
             y + height - child_height + self.scroll_y,
-            max(width, child_width),
+            (
+                max(content_width, child_width)
+                if self.horizontal
+                else content_width
+            ),
             max(height, child_height),
         )
+        self._sync_drawables()
 
     def hit_test(self, x: float, y: float) -> Widget | None:
         """Hit-test the viewport and its visible content."""
@@ -2158,6 +2929,244 @@ class ScrollView(Container):
             )
         if old == (self.scroll_x, self.scroll_y):
             return False
+        if self.view is not None:
+            self.view.invalidate_layout()
+        return True
+
+    def _set_scroll_from_pointer(self, y: float) -> None:
+        _, bottom, _, top = self.presented_bounds
+        _, _, _, thumb_top = self._thumb_bounds()
+        thumb_height = thumb_top - self._thumb_bounds()[1]
+        travel = max(1, top - bottom - thumb_height)
+        thumb_bottom = min(
+            top - thumb_height,
+            max(bottom, y - self._scrollbar_drag_offset),
+        )
+        ratio = (top - thumb_height - thumb_bottom) / travel
+        self.scroll_y = ratio * self.max_scroll_y
+        if self.view is not None:
+            self.view.invalidate_layout()
+
+    def on_pointer_press(
+        self, x: float, y: float, button: int, modifiers: int
+    ) -> bool:
+        """Begin dragging the thumb or jump it to a track click."""
+        del modifiers
+        if button != mouse.LEFT or not self.scrollbar_visible:
+            return False
+        left, bottom, right, top = self._thumb_bounds()
+        track_left = self.presented_bounds[2] - (
+            self.scrollbar_style.width * self.ui_scale
+        )
+        if not track_left <= x <= self.presented_bounds[2]:
+            return False
+        self._capturing_pointer = True
+        self._scrollbar_drag_offset = (
+            y - bottom if left <= x <= right and bottom <= y <= top else (top - bottom) / 2
+        )
+        self._set_scroll_from_pointer(y)
+        return True
+
+    def on_pointer_drag(
+        self,
+        x: float,
+        y: float,
+        delta_x: float,
+        delta_y: float,
+        buttons: int,
+        modifiers: int,
+    ) -> bool:
+        """Update vertical scrolling while the thumb is captured."""
+        del x, delta_x, delta_y, buttons, modifiers
+        if not self._capturing_pointer:
+            return False
+        self._set_scroll_from_pointer(y)
+        return True
+
+    def on_pointer_release(
+        self, x: float, y: float, button: int, modifiers: int
+    ) -> bool:
+        """Stop a captured scrollbar drag."""
+        del x, y, button, modifiers
+        captured = self._capturing_pointer
+        self._capturing_pointer = False
+        return captured
+
+
+class ListView(ScrollView):
+    """Scrollable single-selection list containing arbitrary row widgets."""
+
+    def __init__(
+        self,
+        *items: Widget,
+        selected_index: int | None = None,
+        on_change: ListSelectionHandler | None = None,
+        spacing: float = 0,
+        style: ListViewStyle | None = None,
+        width: float | None = 240,
+        height: float | None = 160,
+        **kwargs,
+    ) -> None:
+        if selected_index is not None and not 0 <= selected_index < len(items):
+            raise ValueError("list view selected index is out of range")
+        kwargs.setdefault("focusable", True)
+        super().__init__(width=width, height=height, **kwargs)
+        self._content = VBox(spacing=spacing, alignment="start")
+        ScrollView.add(self, self._content)
+        for item in items:
+            self._content.add(item)
+        self.selected_index = selected_index
+        self.on_change = on_change
+        self.spacing = spacing
+        self.style = style or ListViewStyle()
+        self._uses_theme_list = style is None
+        self._selection: pyglet.shapes.Rectangle | None = None
+        self._pressed_index: int | None = None
+
+    @property
+    def items(self) -> tuple[Widget, ...]:
+        """Row widgets as an immutable snapshot."""
+        return self._content.children
+
+    def add(self, widget: WidgetType) -> WidgetType:
+        """Append and return a row widget."""
+        return self._content.add(widget)
+
+    def remove(self, widget: WidgetType) -> WidgetType:
+        """Remove and return a row widget."""
+        index = self.items.index(widget)
+        removed = self._content.remove(widget)
+        if self.selected_index == index:
+            self.selected_index = None
+        elif self.selected_index is not None and self.selected_index > index:
+            self.selected_index -= 1
+        return removed
+
+    def _bind(
+        self,
+        view: UIView,
+        parent_group: pyglet.graphics.Group | None = None,
+    ) -> None:
+        if self._uses_theme_list:
+            self.style = view.theme.list_view
+        super()._bind(view, parent_group)
+        self._selection = pyglet.shapes.Rectangle(
+            0,
+            0,
+            0,
+            0,
+            batch=view.batch,
+            group=pyglet.graphics.Group(
+                order=self.layer - 1,
+                parent=self._scissor_group,
+            ),
+        )
+        self._sync_drawables()
+
+    def arrange(
+        self,
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+    ) -> None:
+        """Arrange the scroll viewport and refresh the selected row."""
+        super().arrange(x, y, width, height)
+        self._sync_drawables()
+
+    def _sync_drawables(self) -> None:
+        super()._sync_drawables()
+        if self._selection is None:
+            return
+        visible = (
+            self.visible_in_hierarchy
+            and self.selected_index is not None
+            and self.selected_index < len(self.items)
+        )
+        self._selection.visible = visible
+        if not visible or self.selected_index is None:
+            return
+        row = self.items[self.selected_index]
+        left, bottom, right, top = row.presented_bounds
+        own_left, own_bottom, own_right, own_top = self.presented_bounds
+        color = _rgba(self.style.selected)
+        self._selection.position = own_left, max(own_bottom, bottom)
+        self._selection.width = own_right - own_left
+        self._selection.height = max(
+            0,
+            min(own_top, top) - max(own_bottom, bottom),
+        )
+        self._selection.color = color[:3]
+        self._selection.opacity = round(
+            color[3] * self.effective_opacity / 255
+        )
+
+    def hit_test(self, x: float, y: float) -> Widget | None:
+        """Treat visible list rows as one selectable list target."""
+        return Widget.hit_test(self, x, y)
+
+    def _index_at(self, x: float, y: float) -> int | None:
+        for index, item in enumerate(self.items):
+            left, bottom, right, top = item.presented_bounds
+            if left <= x <= right and bottom <= y <= top:
+                return index
+        return None
+
+    def _select(self, index: int) -> None:
+        if index == self.selected_index:
+            return
+        self.selected_index = index
+        self._sync_drawables()
+        if self.on_change is not None:
+            self.on_change(index, self.items[index])
+
+    def on_pointer_press(
+        self, x: float, y: float, button: int, modifiers: int
+    ) -> bool:
+        """Begin scrollbar interaction or capture a selectable row."""
+        if super().on_pointer_press(x, y, button, modifiers):
+            self._pressed_index = None
+            return True
+        if button != mouse.LEFT:
+            return False
+        self._pressed_index = self._index_at(x, y)
+        self._capturing_pointer = self._pressed_index is not None
+        return self._capturing_pointer
+
+    def on_pointer_release(
+        self, x: float, y: float, button: int, modifiers: int
+    ) -> bool:
+        """Finish scrolling or select the row released under the pointer."""
+        if self._pressed_index is None:
+            return super().on_pointer_release(x, y, button, modifiers)
+        index = self._index_at(x, y)
+        pressed = self._pressed_index
+        self._pressed_index = None
+        self._capturing_pointer = False
+        if index == pressed:
+            self._select(index)
+        return True
+
+    def on_key_press(self, symbol: int, modifiers: int) -> bool:
+        """Move single selection with Up and Down."""
+        del modifiers
+        if not self.items or symbol not in (key.UP, key.DOWN):
+            return False
+        index = self.selected_index if self.selected_index is not None else 0
+        index = (
+            max(0, index - 1)
+            if symbol == key.UP
+            else min(len(self.items) - 1, index + 1)
+        )
+        self._select(index)
+        row = self.items[index]
+        self.scroll_y = min(
+            self.max_scroll_y,
+            max(
+                self.scroll_y,
+                self.y + self.height - row.y - row.height,
+            ),
+        )
         if self.view is not None:
             self.view.invalidate_layout()
         return True
@@ -3007,9 +4016,16 @@ class GUIManager:
                 backwards=bool(modifiers & key.MOD_SHIFT)
             )
             return True
-        if symbol == key.ESCAPE and len(self._stack) > 1:
-            self.pop()
-            return True
+        if symbol == key.ESCAPE:
+            if (
+                self._focused is not None
+                and self._focused.on_key_press(symbol, modifiers)
+            ):
+                return True
+            if len(self._stack) > 1:
+                self.pop()
+                return True
+            return False
         return bool(
             self._focused
             and self._focused.on_key_press(symbol, modifiers)

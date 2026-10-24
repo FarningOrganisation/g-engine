@@ -10,8 +10,12 @@ import pyglet
 from pyglet.window import key, mouse
 from g import (
     ColorTileSet,
+    Checkbox,
+    Dropdown,
     GameObject,
+    ListView,
     Panel,
+    ProgressBar,
     Slider,
     SpriteAnimator,
     SpriteRenderer,
@@ -21,6 +25,7 @@ from g import (
     ImageCollectionTileSet,
     TileLayer,
     Toggle,
+    UIImage,
     VBox,
 )
 from g.export import ExportResult
@@ -5289,6 +5294,11 @@ class ImGuiEditorTests(unittest.TestCase):
         element = self.editor.state.add_gui_element("button")
         toggle = self.editor.state.add_gui_element("toggle")
         slider = self.editor.state.add_gui_element("slider")
+        progress = self.editor.state.add_gui_element("progress_bar")
+        image = self.editor.state.add_gui_element("image")
+        checkbox = self.editor.state.add_gui_element("checkbox")
+        dropdown = self.editor.state.add_gui_element("dropdown")
+        list_view = self.editor.state.add_gui_element("list_view")
         text_input = self.editor.state.add_gui_element("text_input")
 
         self.editor.on_draw()
@@ -5309,11 +5319,30 @@ class ImGuiEditorTests(unittest.TestCase):
         self.assertEqual(panel_widget.children[0].id, element["id"])
         self.assertEqual(
             [child.id for child in panel_widget.children[1:]],
-            [toggle["id"], slider["id"], text_input["id"]],
+            [
+                toggle["id"],
+                slider["id"],
+                progress["id"],
+                image["id"],
+                checkbox["id"],
+                dropdown["id"],
+                list_view["id"],
+            ],
         )
         self.assertIsInstance(panel_widget.children[1], Toggle)
         self.assertIsInstance(panel_widget.children[2], Slider)
-        self.assertIsInstance(panel_widget.children[3], TextInput)
+        self.assertIsInstance(panel_widget.children[3], ProgressBar)
+        self.assertIsInstance(panel_widget.children[4], UIImage)
+        self.assertIsInstance(panel_widget.children[5], Checkbox)
+        self.assertIsInstance(panel_widget.children[6], Dropdown)
+        self.assertIsInstance(panel_widget.children[7], ListView)
+        runtime_list = panel_widget.children[7]
+        assert isinstance(runtime_list, ListView)
+        self.assertEqual(
+            [item.id for item in runtime_list.items],
+            [text_input["id"]],
+        )
+        self.assertIsInstance(runtime_list.items[0], TextInput)
         panel = imgui.internal.find_window_by_name(
             "GUI###LayerContent"
         )

@@ -51,16 +51,27 @@ from .gui import (
     Button,
     ButtonStyle,
     CanvasLayout,
+    Checkbox,
+    CheckboxStyle,
     Container,
+    Dropdown,
+    DropdownStyle,
     GridLayout,
     HBox,
+    ImageFit,
     Label,
+    ListView,
+    ListViewStyle,
     Panel,
+    ProgressBar,
+    ProgressBarStyle,
     ScrollView,
+    ScrollbarStyle,
     Slider,
     StackLayout,
     TextInput,
     Toggle,
+    UIImage,
     UIView,
     VBox,
     Widget,
@@ -142,6 +153,7 @@ def _validate_gui_element_records(elements: object) -> None:
             "grid",
             "anchor",
             "scroll",
+            "list_view",
         }
         if children and element.get("type") not in container_types:
             raise SceneFormatError(
@@ -1095,6 +1107,38 @@ def _color(value: object, name: str, *, optional: bool = False) -> Color | None:
     return cast(Color, tuple(value))
 
 
+def _scrollbar_style(record: Mapping[str, object]) -> ScrollbarStyle:
+    defaults = ScrollbarStyle()
+    width = _number(record, "scrollbar_width", defaults.width)
+    minimum_thumb = _number(
+        record,
+        "minimum_thumb",
+        defaults.minimum_thumb,
+    )
+    if width <= 0 or minimum_thumb <= 0:
+        raise SceneFormatError(
+            "GUI scrollbar width and minimum thumb must be positive"
+        )
+    return ScrollbarStyle(
+        track=cast(
+            Color,
+            _color(
+                record.get("scrollbar_track", defaults.track),
+                "GUI scrollbar track",
+            ),
+        ),
+        thumb=cast(
+            Color,
+            _color(
+                record.get("scrollbar_thumb", defaults.thumb),
+                "GUI scrollbar thumb",
+            ),
+        ),
+        width=width,
+        minimum_thumb=minimum_thumb,
+    )
+
+
 def _point(value: object, name: str) -> tuple[float, float]:
     if (
         not isinstance(value, (list, tuple, Vec2))
@@ -1107,6 +1151,25 @@ def _point(value: object, name: str) -> tuple[float, float]:
     ):
         raise SceneFormatError(f"{name} must contain two numbers")
     return float(value[0]), float(value[1])
+
+
+def _dash_pattern(
+    value: object,
+    name: str = "dash_pattern",
+) -> tuple[float, float] | None:
+    if value is None:
+        return None
+    pattern = _point(value, name)
+    if (
+        not isfinite(pattern[0])
+        or not isfinite(pattern[1])
+        or pattern[0] <= 0
+        or pattern[1] <= 0
+    ):
+        raise SceneFormatError(
+            f"{name} must contain positive dash and gap lengths"
+        )
+    return pattern
 
 
 def _points(value: object, name: str) -> tuple[tuple[float, float], ...]:
@@ -1749,6 +1812,7 @@ def _register_builtins(registry: SceneTypeRegistry) -> None:
             _point(p.get("end"), "end"),
             cast(Color, _color(p.get("color", [255, 255, 255]), "color")),
             _number(p, "thickness", 1),
+            dash_pattern=_dash_pattern(p.get("dash_pattern")),
             visible=bool(p.get("visible", True)),
             screen_space=bool(p.get("screen_space", False)),
         ),
@@ -1757,6 +1821,7 @@ def _register_builtins(registry: SceneTypeRegistry) -> None:
             "end": value.end,
             "color": value.color,
             "thickness": value.thickness,
+            "dash_pattern": value.dash_pattern,
             "opacity": value.opacity,
             **_renderer_common(value),
         },
@@ -2658,16 +2723,79 @@ class SceneSerializer:
                     ],
                 }
             )
+        elif isinstance(widget, ListView):
+            record.update(
+                {
+                    "type": "list_view",
+                    "selected_index": widget.selected_index,
+                    "spacing": widget.spacing,
+                    "selected_color": cast(
+                        JsonValue,
+                        list(widget.style.selected),
+                    ),
+                    "scroll_speed": widget.scroll_speed,
+                    "scrollbar_track": cast(
+                        JsonValue,
+                        list(widget.scrollbar_style.track),
+                    ),
+                    "scrollbar_thumb": cast(
+                        JsonValue,
+                        list(widget.scrollbar_style.thumb),
+                    ),
+                    "scrollbar_width": widget.scrollbar_style.width,
+                    "minimum_thumb": widget.scrollbar_style.minimum_thumb,
+                    "children": [
+                        self._dump_gui_widget(child, widget, context)
+                        for child in widget.items
+                    ],
+                }
+            )
         elif isinstance(widget, ScrollView):
             record.update(
                 {
                     "type": "scroll",
                     "scroll_speed": widget.scroll_speed,
                     "horizontal": widget.horizontal,
+                    "scrollbar_track": cast(
+                        JsonValue,
+                        list(widget.scrollbar_style.track),
+                    ),
+                    "scrollbar_thumb": cast(
+                        JsonValue,
+                        list(widget.scrollbar_style.thumb),
+                    ),
+                    "scrollbar_width": widget.scrollbar_style.width,
+                    "minimum_thumb": widget.scrollbar_style.minimum_thumb,
                     "children": [
                         self._dump_gui_widget(child, widget, context)
                         for child in widget.children
                     ],
+                }
+            )
+        elif isinstance(widget, UIImage):
+            record.update(
+                {
+                    "type": "image",
+                    "image": (
+                        None
+                        if widget.image is None
+                        else context.resource_path(widget.image)
+                    ),
+                    "fit": widget.fit,
+                }
+            )
+        elif isinstance(widget, ProgressBar):
+            record.update(
+                {
+                    "type": "progress_bar",
+                    "minimum": widget.minimum,
+                    "maximum": widget.maximum,
+                    "value": widget.value,
+                    "background": cast(
+                        JsonValue,
+                        list(widget.style.background),
+                    ),
+                    "fill": cast(JsonValue, list(widget.style.fill)),
                 }
             )
         elif isinstance(widget, Label):
@@ -2684,6 +2812,64 @@ class SceneSerializer:
                     "color": cast(JsonValue, list(widget.color)),
                     "align": widget.align,
                     "multiline": widget.multiline,
+                }
+            )
+        elif isinstance(widget, Checkbox):
+            record.update(
+                {
+                    "type": "checkbox",
+                    "text": widget.text,
+                    "value": widget.value,
+                    "box": cast(JsonValue, list(widget.style.box)),
+                    "check": cast(JsonValue, list(widget.style.check)),
+                    "text_color": cast(
+                        JsonValue,
+                        list(widget.style.text_color),
+                    ),
+                    "disabled": cast(
+                        JsonValue,
+                        list(widget.style.disabled),
+                    ),
+                    "font": (
+                        None
+                        if widget.style.font is None
+                        else context.resource_path(widget.style.font)
+                    ),
+                    "font_size": widget.style.font_size,
+                }
+            )
+        elif isinstance(widget, Dropdown):
+            record.update(
+                {
+                    "type": "dropdown",
+                    "options": cast(JsonValue, list(widget.options)),
+                    "selected_index": widget.selected_index,
+                    "background": cast(
+                        JsonValue,
+                        list(widget.style.background),
+                    ),
+                    "options_color": cast(
+                        JsonValue,
+                        list(widget.style.options),
+                    ),
+                    "selected_color": cast(
+                        JsonValue,
+                        list(widget.style.selected),
+                    ),
+                    "disabled": cast(
+                        JsonValue,
+                        list(widget.style.disabled),
+                    ),
+                    "text_color": cast(
+                        JsonValue,
+                        list(widget.style.text_color),
+                    ),
+                    "font": (
+                        None
+                        if widget.style.font is None
+                        else context.resource_path(widget.style.font)
+                    ),
+                    "font_size": widget.style.font_size,
                 }
             )
         elif isinstance(widget, Toggle):
@@ -2876,7 +3062,11 @@ class SceneSerializer:
             raise SceneFormatError(
                 "GUI anchor layout can contain only one child"
             )
-        if isinstance(widget, ScrollView) and len(children) > 1:
+        if (
+            isinstance(widget, ScrollView)
+            and not isinstance(widget, ListView)
+            and len(children) > 1
+        ):
             raise SceneFormatError(
                 "GUI scroll view can contain only one child"
             )
@@ -2888,6 +3078,17 @@ class SceneSerializer:
                     identifiers,
                     context,
                 )
+        if isinstance(widget, ListView):
+            selected = raw_element.get("selected_index")
+            if selected is not None and (
+                not isinstance(selected, int)
+                or isinstance(selected, bool)
+                or not 0 <= selected < len(widget.items)
+            ):
+                raise SceneFormatError(
+                    "GUI list view selected index is out of range"
+                )
+            widget.selected_index = selected
         return widget
 
     def _restore_gui_widget(
@@ -3023,6 +3224,32 @@ class SceneSerializer:
             )
             anchor.margin = common["margin"]
             return anchor
+        if widget_type == "list_view":
+            scroll_speed = _number(record, "scroll_speed", 32)
+            spacing = _number(record, "spacing", 0)
+            if scroll_speed <= 0 or spacing < 0:
+                raise SceneFormatError(
+                    "GUI list view speed must be positive and spacing non-negative"
+                )
+            defaults = ListViewStyle()
+            return ListView(
+                scroll_speed=scroll_speed,
+                spacing=spacing,
+                style=ListViewStyle(
+                    selected=cast(
+                        Color,
+                        _color(
+                            record.get(
+                                "selected_color",
+                                defaults.selected,
+                            ),
+                            "GUI list view selection",
+                        ),
+                    ),
+                ),
+                scrollbar_style=_scrollbar_style(record),
+                **common,
+            )
         if widget_type == "scroll":
             scroll_speed = _number(record, "scroll_speed", 32)
             if scroll_speed <= 0:
@@ -3032,6 +3259,62 @@ class SceneSerializer:
             return ScrollView(
                 scroll_speed=scroll_speed,
                 horizontal=bool(record.get("horizontal", False)),
+                scrollbar_style=_scrollbar_style(record),
+                **common,
+            )
+        if widget_type == "image":
+            fit = record.get("fit", "contain")
+            if fit not in {"contain", "cover", "stretch", "native"}:
+                raise SceneFormatError(
+                    "GUI image fit must be contain, cover, stretch, or native"
+                )
+            raw_path = record.get("image")
+            if raw_path is not None and not isinstance(raw_path, str):
+                raise SceneFormatError(
+                    "GUI image resource must be a string or null"
+                )
+            return UIImage(
+                (
+                    None
+                    if raw_path is None
+                    else context.game.resources.load_image(
+                        context.resource_path(raw_path)
+                    )
+                ),
+                fit=cast(ImageFit, fit),
+                **common,
+            )
+        if widget_type == "progress_bar":
+            minimum = _number(record, "minimum", 0)
+            maximum = _number(record, "maximum", 1)
+            if maximum <= minimum:
+                raise SceneFormatError(
+                    "GUI progress bar maximum must be greater than minimum"
+                )
+            defaults = ProgressBarStyle()
+            return ProgressBar(
+                minimum,
+                maximum,
+                _number(record, "value", minimum),
+                style=ProgressBarStyle(
+                    background=cast(
+                        Color,
+                        _color(
+                            record.get(
+                                "background",
+                                defaults.background,
+                            ),
+                            "GUI progress bar background",
+                        ),
+                    ),
+                    fill=cast(
+                        Color,
+                        _color(
+                            record.get("fill", defaults.fill),
+                            "GUI progress bar fill",
+                        ),
+                    ),
+                ),
                 **common,
             )
         if widget_type == "label":
@@ -3050,6 +3333,131 @@ class SceneSerializer:
                 ),
                 align=align,
                 multiline=bool(record.get("multiline", False)),
+                **common,
+            )
+        if widget_type == "checkbox":
+            defaults = CheckboxStyle()
+            return Checkbox(
+                self._required_string(record, "text"),
+                value=bool(record.get("value", False)),
+                style=CheckboxStyle(
+                    box=cast(
+                        Color,
+                        _color(
+                            record.get("box", defaults.box),
+                            "GUI checkbox box",
+                        ),
+                    ),
+                    check=cast(
+                        Color,
+                        _color(
+                            record.get("check", defaults.check),
+                            "GUI checkbox check",
+                        ),
+                    ),
+                    text_color=cast(
+                        Color,
+                        _color(
+                            record.get(
+                                "text_color",
+                                defaults.text_color,
+                            ),
+                            "GUI checkbox text color",
+                        ),
+                    ),
+                    disabled=cast(
+                        Color,
+                        _color(
+                            record.get("disabled", defaults.disabled),
+                            "GUI checkbox disabled",
+                        ),
+                    ),
+                    font=_font(
+                        context,
+                        record.get("font"),
+                        "GUI checkbox font",
+                    ),
+                    font_size=_number(record, "font_size", 14),
+                ),
+                **common,
+            )
+        if widget_type == "dropdown":
+            options = record.get("options", [])
+            if (
+                not isinstance(options, list)
+                or not all(isinstance(option, str) for option in options)
+            ):
+                raise SceneFormatError(
+                    "GUI dropdown options must be a list of strings"
+                )
+            selected = record.get("selected_index")
+            if selected is not None and (
+                not isinstance(selected, int)
+                or isinstance(selected, bool)
+                or not 0 <= selected < len(options)
+            ):
+                raise SceneFormatError(
+                    "GUI dropdown selected index is out of range"
+                )
+            defaults = DropdownStyle()
+            return Dropdown(
+                options,
+                selected_index=selected,
+                style=DropdownStyle(
+                    background=cast(
+                        Color,
+                        _color(
+                            record.get(
+                                "background",
+                                defaults.background,
+                            ),
+                            "GUI dropdown background",
+                        ),
+                    ),
+                    options=cast(
+                        Color,
+                        _color(
+                            record.get(
+                                "options_color",
+                                defaults.options,
+                            ),
+                            "GUI dropdown options",
+                        ),
+                    ),
+                    selected=cast(
+                        Color,
+                        _color(
+                            record.get(
+                                "selected_color",
+                                defaults.selected,
+                            ),
+                            "GUI dropdown selection",
+                        ),
+                    ),
+                    disabled=cast(
+                        Color,
+                        _color(
+                            record.get("disabled", defaults.disabled),
+                            "GUI dropdown disabled",
+                        ),
+                    ),
+                    text_color=cast(
+                        Color,
+                        _color(
+                            record.get(
+                                "text_color",
+                                defaults.text_color,
+                            ),
+                            "GUI dropdown text color",
+                        ),
+                    ),
+                    font=_font(
+                        context,
+                        record.get("font"),
+                        "GUI dropdown font",
+                    ),
+                    font_size=_number(record, "font_size", 14),
+                ),
                 **common,
             )
         if widget_type in {"button", "toggle"}:

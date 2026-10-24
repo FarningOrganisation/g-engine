@@ -47,6 +47,69 @@ The bounds are deliberately conservative: content may occasionally be
 submitted just outside a rotated viewport, but visible content is not removed.
 Renderers without known bounds remain submitted.
 
+## Direct per-frame drawing
+
+Use a draw callback for changing overlays or short-lived visuals that do not
+need a `GameObject`, component, collider, or scene lifetime. It runs once per
+rendered frame in virtual screen coordinates, after scene objects and GUI but
+before scene transitions:
+
+```python
+life_icon = game.resources.load_image("life.png")
+lives = 3
+
+
+def draw() -> None:
+    for index in range(lives):
+        life_icon.draw(16 + index * 24, game.height - 32)
+
+    game.draw_circle(400, 300, 12, color=(255, 220, 80))
+    game.draw_rect(400, 40, 160, 12, color=(80, 200, 120))
+    game.draw_polygon(((700, 24), (760, 24), (730, 56)))
+
+
+game.run(update=update, draw=draw)
+```
+
+Subclass-based games can override `Game.on_draw()` instead. Direct primitive
+helpers may only be called from that hook or the `draw` callback. The engine
+reuses their underlying drawables between frames and removes commands that
+disappear. `Image.draw()` can also be called there and uses a cached sprite;
+it does not perform pyglet's costly immediate texture blit each frame.
+
+Use `draw_line()` with `dash_pattern=(dash_length, gap_length)` for dashed or
+dotted guides:
+
+```python
+game.draw_line(
+    (100, 100),
+    (400, 100),
+    thickness=4,
+    dash_pattern=(4, 8),  # Short dashes produce a dotted appearance.
+)
+```
+
+Persistent lines support the same option through `game.add_line(...)`,
+`scene.add_line(...)`, `create_line(...)`, and `LineRenderer`. Set a
+renderer's `dash_pattern` to `None` to make it solid again:
+
+```python
+from g import LineRenderer
+
+guide = game.add_line(
+    (100, 80),
+    (400, 80),
+    thickness=3,
+    dash_pattern=(12, 6),
+)
+guide.require_component(LineRenderer).dash_pattern = None
+```
+
+Prefer a renderer when a visual needs world transforms, camera culling,
+scene persistence, editor inspection, shaders, or a stable layer order.
+`TrailRenderer` remains a continuous history of object movement; use dashed
+lines for fixed or explicitly updated guides.
+
 ## Aiming sprites
 
 Use `look_at()` when any node should rotate toward another node or a

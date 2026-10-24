@@ -14,6 +14,7 @@ from g import (
     Collider,
     Button,
     CanvasLayout,
+    Checkbox,
     ColliderMode,
     Component,
     Game,
@@ -22,7 +23,11 @@ from g import (
     HBox,
     Image,
     Label,
+    ListView,
+    Dropdown,
+    LineRenderer,
     Panel,
+    ProgressBar,
     PlatformerMotor,
     PhysicsBody,
     PresentationSettings,
@@ -39,12 +44,14 @@ from g import (
     TextInput,
     TextRenderer,
     Toggle,
+    UIImage,
     UIView,
     VBox,
     Vec2,
     requires_components,
     create_area_box,
     create_area_circle,
+    create_line,
     create_rect,
     create_sprite,
     create_text,
@@ -379,6 +386,24 @@ class PersistenceTests(unittest.TestCase):
         self.assertIs(loaded_script.scene, restored)
         self.assertIs(loaded_script.game, self.game)
 
+    def test_line_dash_pattern_round_trips(self) -> None:
+        self.game.add(
+            create_line((0, 0), (20, 0), dash_pattern=(5, 3))
+        )
+
+        document = SceneSerializer(self.registry).capture(
+            self.game.scenes.current,
+            asset_root=".",
+        )
+        restored = SceneSerializer(self.registry).restore(
+            self.game,
+            document,
+            asset_root=".",
+        )
+
+        renderer = restored.objects[0].require_component(LineRenderer)
+        self.assertEqual(renderer.dash_pattern, (5, 3))
+
     def test_round_trip_preserves_area_collider_settings(self) -> None:
         scene = self.game.scenes.current
         area = create_area_box(40, 50, 80, 30)
@@ -653,6 +678,96 @@ class PersistenceTests(unittest.TestCase):
         self.assertTrue(restored_pause.modal)
         self.assertTrue(restored_pause.pauses_below)
         self.assertTrue(restored_pause.pauses_scene)
+
+    def test_round_trip_preserves_extended_gui_widgets(self) -> None:
+        scene = self.game.scenes.current
+        root = scene.gui.default.root
+        assert isinstance(root, CanvasLayout)
+        root.add_at(
+            ProgressBar(0, 100, 35, name="Loading"),
+            10,
+            10,
+        )
+        root.add_at(
+            Checkbox("Hints", True, name="Hints"),
+            10,
+            40,
+        )
+        root.add_at(
+            Dropdown(
+                ["Low", "Medium", "High"],
+                1,
+                name="Quality",
+            ),
+            10,
+            70,
+        )
+        root.add_at(
+            ListView(
+                Label("First"),
+                HBox(Label("Icon"), Label("Second")),
+                selected_index=1,
+                spacing=5,
+                name="Items",
+            ),
+            10,
+            110,
+        )
+
+        with TemporaryDirectory() as directory:
+            asset_root = Path(directory)
+            image_path = asset_root / "image.png"
+            pyglet.image.SolidColorImagePattern(
+                (255, 255, 255, 255)
+            ).create_image(16, 8).save(image_path)
+            root.add_at(
+                UIImage(
+                    Image(image_path),
+                    fit="cover",
+                    width=64,
+                    height=64,
+                    name="Portrait",
+                ),
+                220,
+                10,
+            )
+            filename = asset_root / "gui.scene.json"
+            SceneSerializer(self.registry).save(
+                scene,
+                filename,
+                asset_root=asset_root,
+            )
+            restored = SceneSerializer(self.registry).load(
+                self.game,
+                filename,
+                asset_root=asset_root,
+            )
+
+        restored_root = restored.gui.default.root
+        assert isinstance(restored_root, CanvasLayout)
+        widgets = {widget.name: widget for widget in restored_root.children}
+        self.assertIsInstance(widgets["Loading"], ProgressBar)
+        self.assertIsInstance(widgets["Hints"], Checkbox)
+        self.assertIsInstance(widgets["Quality"], Dropdown)
+        self.assertIsInstance(widgets["Items"], ListView)
+        self.assertIsInstance(widgets["Portrait"], UIImage)
+        progress = widgets["Loading"]
+        checkbox = widgets["Hints"]
+        dropdown = widgets["Quality"]
+        listing = widgets["Items"]
+        image = widgets["Portrait"]
+        assert isinstance(progress, ProgressBar)
+        assert isinstance(checkbox, Checkbox)
+        assert isinstance(dropdown, Dropdown)
+        assert isinstance(listing, ListView)
+        assert isinstance(image, UIImage)
+        self.assertEqual(progress.value, 35)
+        self.assertTrue(checkbox.value)
+        self.assertEqual(dropdown.value, "Medium")
+        self.assertEqual(listing.selected_index, 1)
+        self.assertEqual(len(listing.items), 2)
+        self.assertEqual(listing.spacing, 5)
+        self.assertEqual(image.fit, "cover")
 
     def test_font_assets_round_trip_for_text_and_gui(self) -> None:
         scene = self.game.scenes.current

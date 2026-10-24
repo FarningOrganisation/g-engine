@@ -79,6 +79,40 @@ def update(delta_time: float) -> None:
 game.run(update=update, title="My First Game")
 ```
 
+For ad-hoc graphics such as a lives display, provide a draw callback. It runs
+once per rendered frame in virtual screen coordinates, after scene objects and
+UI:
+
+```python
+life_icon = game.resources.load_image("life.png")
+lives = 3
+
+
+def draw() -> None:
+    for index in range(lives):
+        life_icon.draw(16 + index * 24, game.height - 32)
+    game.draw_circle(400, 300, 12, color=(255, 220, 80))
+    game.draw_rect(400, 40, 160, 12, color=(80, 200, 120))
+    game.draw_line(
+        (16, 48),
+        (160, 48),
+        thickness=2,
+        dash_pattern=(8, 4),
+    )
+    game.draw_polygon(((700, 24), (760, 24), (730, 56)))
+
+
+game.run(update=update, draw=draw, title="My First Game")
+```
+
+Subclass-based games can override `Game.on_draw()` instead.
+
+The same `dash_pattern=(dash_length, gap_length)` option is available on
+`game.add_line(...)`, `scene.add_line(...)`, `create_line(...)`, and
+`LineRenderer`. For a dotted appearance, use a dash length close to the line
+thickness. `TrailRenderer` remains a continuous path-history renderer; use a
+dashed `LineRenderer` for fixed or explicitly updated guide lines.
+
 Run it with:
 
 ```bash

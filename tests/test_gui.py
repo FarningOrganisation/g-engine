@@ -6,12 +6,16 @@ from g import (
     AnchorLayout,
     Button,
     CanvasLayout,
+    Checkbox,
+    Dropdown,
     Game,
     GridLayout,
     HBox,
     Label,
+    ListView,
     MouseButton,
     Panel,
+    ProgressBar,
     ScrollView,
     Scene,
     Slider,
@@ -19,11 +23,13 @@ from g import (
     UITheme,
     TextInput,
     Toggle,
+    UIImage,
     UIFade,
     UISlide,
     UIView,
     VBox,
 )
+from g.resources import Image
 
 
 class GUIWidgetTests(unittest.TestCase):
@@ -169,6 +175,147 @@ class GUIWidgetTests(unittest.TestCase):
         self.assertEqual(toggles, [True])
         self.assertEqual(slider.value, 100)
         self.assertEqual(values[-1], 100)
+
+    def test_progress_bar_clamps_and_resizes_fill(self) -> None:
+        progress = self.gui.add(ProgressBar(0, 100, 25, width=200))
+        self.gui.default._layout()
+
+        fill = progress._fill
+        if fill is None:
+            self.fail("progress fill was not created")
+        self.assertEqual(fill.width, 50)
+
+        progress.value = 150
+
+        self.assertEqual(progress.value, 100)
+        self.assertEqual(fill.width, 200)
+
+    def test_ui_image_supports_all_fit_modes(self) -> None:
+        image = Image.solid(100, 50, (255, 255, 255))
+        widget = self.gui.add(
+            UIImage(image, fit="contain", width=200, height=200)
+        )
+        self.gui.default._layout()
+        sprite = widget._sprite
+        if sprite is None:
+            self.fail("image sprite was not created")
+        self.assertEqual((sprite.scale_x, sprite.scale_y), (2, 2))
+
+        widget.fit = "cover"
+        widget._sync_drawables()
+        self.assertEqual((sprite.scale_x, sprite.scale_y), (4, 4))
+
+        widget.fit = "stretch"
+        widget._sync_drawables()
+        self.assertEqual((sprite.scale_x, sprite.scale_y), (2, 4))
+
+        widget.fit = "native"
+        widget._sync_drawables()
+        self.assertEqual((sprite.scale_x, sprite.scale_y), (1, 1))
+
+    def test_checkbox_dispatches_pointer_and_keyboard_changes(self) -> None:
+        values: list[bool] = []
+        checkbox = self.gui.add(
+            Checkbox("Music", on_change=values.append)
+        )
+        self.gui.default._layout()
+        x = checkbox.x + checkbox.width / 2
+        y = checkbox.y + checkbox.height / 2
+
+        self.gui.on_mouse_press(x, y, MouseButton.LEFT, 0)
+        self.gui.on_mouse_release(x, y, MouseButton.LEFT, 0)
+        self.gui.on_key_release(key.SPACE, 0)
+
+        self.assertEqual(values, [True, False])
+        self.assertFalse(checkbox.value)
+
+    def test_dropdown_selects_pointer_and_keyboard_options(self) -> None:
+        changes: list[tuple[int, str]] = []
+        dropdown = self.gui.add(
+            Dropdown(
+                ["Low", "Medium", "High"],
+                on_change=lambda index, value: changes.append(
+                    (index, value)
+                ),
+            )
+        )
+        self.gui.default._layout()
+        x = dropdown.x + dropdown.width / 2
+        y = dropdown.y + dropdown.height / 2
+
+        self.gui.on_mouse_press(x, y, MouseButton.LEFT, 0)
+        self.gui.on_mouse_release(x, y, MouseButton.LEFT, 0)
+        self.assertTrue(dropdown.open)
+        self.gui.on_key_press(key.ESCAPE, 0)
+        self.assertFalse(dropdown.open)
+        self.gui.on_mouse_press(x, y, MouseButton.LEFT, 0)
+        self.gui.on_mouse_release(x, y, MouseButton.LEFT, 0)
+        left, bottom, right, top = dropdown._option_bounds(2)
+        option_x, option_y = (left + right) / 2, (bottom + top) / 2
+        self.gui.on_mouse_press(option_x, option_y, MouseButton.LEFT, 0)
+        self.gui.on_mouse_release(option_x, option_y, MouseButton.LEFT, 0)
+
+        self.assertEqual(dropdown.value, "High")
+        self.assertEqual(changes, [(2, "High")])
+        self.gui.on_key_press(key.UP, 0)
+        self.assertEqual(dropdown.value, "Medium")
+
+    def test_list_view_selects_arbitrary_widget_rows(self) -> None:
+        selections: list[tuple[int, str]] = []
+        first = Label("First", width=180, height=30)
+        second = HBox(
+            Label("Icon", width=40, height=30),
+            Label("Second", width=140, height=30),
+        )
+        listing = self.gui.add(
+            ListView(
+                first,
+                second,
+                on_change=lambda index, item: selections.append(
+                    (index, item.name)
+                ),
+                width=200,
+                height=50,
+            )
+        )
+        self.gui.default._layout()
+        left, bottom, right, top = second.presented_bounds
+        x, y = (left + right) / 2, (bottom + top) / 2
+
+        self.gui.on_mouse_press(x, y, MouseButton.LEFT, 0)
+        self.gui.on_mouse_release(x, y, MouseButton.LEFT, 0)
+
+        self.assertEqual(listing.selected_index, 1)
+        self.assertEqual(selections, [(1, "HBox")])
+
+    def test_scroll_view_shows_and_drags_vertical_scrollbar(self) -> None:
+        child = Label("Content", width=100, height=400)
+        scroll = self.gui.add(
+            ScrollView(child, width=120, height=100)
+        )
+        self.gui.default._layout()
+
+        self.assertTrue(scroll.scrollbar_visible)
+        track = scroll._scrollbar_track
+        thumb = scroll._scrollbar_thumb
+        if track is None or thumb is None:
+            self.fail("scrollbar drawables were not created")
+        self.assertTrue(track.visible)
+        x = track.x + track.width / 2
+        self.gui.on_mouse_press(x, scroll.y + 5, MouseButton.LEFT, 0)
+        self.gui.on_mouse_release(x, scroll.y + 5, MouseButton.LEFT, 0)
+
+        self.assertGreater(scroll.scroll_y, 0)
+
+        fitting = self.gui.add(
+            ScrollView(
+                Label("Short", width=100, height=20),
+                width=120,
+                height=100,
+            )
+        )
+        self.gui.default._layout()
+        self.assertFalse(fitting.scrollbar_visible)
 
     def test_text_input_uses_pyglet_text_entry_and_focus(self) -> None:
         commits: list[str] = []

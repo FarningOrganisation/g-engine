@@ -154,24 +154,28 @@ class MacOSFrameDriver(EventDispatcher):
 
     def on_display_frame(self) -> None:
         with self._lock:
-            self._pending = False
             if not self._active:
+                self._pending = False
                 return
-        self._check_error(0)
-        now = perf_counter()
-        geometry = self._window.get_framebuffer_size()
-        display_id = self._current_display()
-        if self._timing_reset or geometry != self._geometry or display_id != self._display_id:
-            if display_id != self._display_id:
-                self._link.set_display(display_id)
-            self._geometry, self._display_id = geometry, display_id
+        try:
+            self._check_error(0)
+            now = perf_counter()
+            geometry = self._window.get_framebuffer_size()
+            display_id = self._current_display()
+            if self._timing_reset or geometry != self._geometry or display_id != self._display_id:
+                if display_id != self._display_id:
+                    self._link.set_display(display_id)
+                self._geometry, self._display_id = geometry, display_id
+                self._previous = now
+                self._reset()
+                self._timing_reset = False
+            elapsed = now - self._previous
             self._previous = now
-            self._reset()
-            self._timing_reset = False
-        elapsed = now - self._previous
-        self._previous = now
-        self._update(elapsed)
-        self._window.draw(elapsed)
+            self._update(elapsed)
+            self._window.draw(elapsed)
+        finally:
+            with self._lock:
+                self._pending = False
 
     def close(self) -> None:
         if self._closed:

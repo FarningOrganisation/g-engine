@@ -17,9 +17,29 @@ from g import (
     create_rect,
     create_triangle,
 )
+from g.geometry import dashed_line_segments, validate_dash_pattern
 
 
 class PrimitiveTests(unittest.TestCase):
+    def test_dashed_line_geometry_clips_final_dash(self) -> None:
+        self.assertEqual(
+            dashed_line_segments((0, 0), (25, 0), (5, 3)),
+            (
+                ((0, 0), (5, 0)),
+                ((8, 0), (13, 0)),
+                ((16, 0), (21, 0)),
+                ((24, 0), (25, 0)),
+            ),
+        )
+
+    def test_dash_pattern_requires_positive_finite_lengths(self) -> None:
+        for pattern in ((0, 1), (1, -1), (float("inf"), 1)):
+            with self.subTest(pattern=pattern), self.assertRaisesRegex(
+                ValueError,
+                "positive finite",
+            ):
+                validate_dash_pattern(pattern)
+
     def test_shape_style_rejects_invisible_or_invalid_outlines(self) -> None:
         with self.assertRaisesRegex(ValueError, "fill or outline"):
             ShapeStyle(fill=None, outline=None)
@@ -151,6 +171,62 @@ class PrimitiveTests(unittest.TestCase):
         self.assertEqual(drawable.thickness, 12)
         with self.assertRaisesRegex(ValueError, "thickness must be positive"):
             renderer.thickness = 0
+
+    @patch("g.components.line_renderer.pyglet.shapes.Line")
+    def test_dashed_line_syncs_visible_segments(
+        self,
+        line_type: Mock,
+    ) -> None:
+        drawables = [Mock(), Mock(), Mock()]
+        line_type.side_effect = drawables
+        line = create_line(
+            (0, 0),
+            (20, 0),
+            thickness=2,
+            dash_pattern=(5, 3),
+        )
+        renderer = line.require_component(LineRenderer)
+
+        renderer.sync()
+
+        self.assertEqual(renderer.dash_pattern, (5, 3))
+        self.assertEqual(len(renderer.drawables), 3)
+        self.assertEqual(
+            [
+                (drawable.x, drawable.y, drawable.x2, drawable.y2)
+                for drawable in drawables
+            ],
+            [
+                (0, 0, 5, 0),
+                (8, 0, 13, 0),
+                (16, 0, 20, 0),
+            ],
+        )
+
+    @patch("g.components.line_renderer.pyglet.shapes.Line")
+    def test_changing_dash_pattern_resizes_batched_drawables(
+        self,
+        line_type: Mock,
+    ) -> None:
+        drawables = [Mock(), Mock(), Mock()]
+        line_type.side_effect = drawables
+        game = Game(100, 100)
+        line = game.add_line((0, 0), (10, 0))
+        renderer = line.require_component(LineRenderer)
+
+        renderer.dash_pattern = (2, 2)
+        renderer.sync()
+
+        self.assertEqual(len(renderer.drawables), 3)
+        self.assertIs(drawables[1].batch, game._batch)
+        self.assertIs(drawables[2].batch, game._batch)
+
+        renderer.dash_pattern = None
+        renderer.sync()
+
+        self.assertEqual(len(renderer.drawables), 1)
+        drawables[1].delete.assert_called_once_with()
+        drawables[2].delete.assert_called_once_with()
 
     @patch("g.components.triangle_renderer.pyglet.shapes.Triangle")
     def test_triangle_is_centered_and_syncs_points(

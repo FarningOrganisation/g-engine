@@ -30,6 +30,16 @@ def _make_target(controller: MacOSFullscreen) -> Any:
             except Exception as error:
                 controller._delivery_error = error
 
+        @_target_class.method("v@")
+        def leaveBorderless_(target: Any, sender: Any) -> None:
+            controller = target.controller
+            try:
+                pyglet.app.platform_event_loop.post_event(
+                    controller, "on_leave_fullscreen",
+                )
+            except Exception as error:
+                controller._delivery_error = error
+
     target = ObjCClass("GFullscreenButtonTarget").alloc().init()
     if target is None:
         raise RuntimeError("Cannot create the macOS fullscreen button target")
@@ -37,8 +47,38 @@ def _make_target(controller: MacOSFullscreen) -> Any:
     return target
 
 
+def _make_windowed_menu_item(target: Any) -> tuple[Any, Any]:
+    from pyglet.libs.darwin.cocoapy import (
+        ObjCClass,
+        get_NSString,
+        get_selector,
+    )
+
+    application = ObjCClass("NSApplication").sharedApplication()
+    main_menu = application.mainMenu()
+    if main_menu is None or main_menu.numberOfItems() == 0:
+        raise RuntimeError("Cannot find the macOS application menu")
+    application_menu = main_menu.itemAtIndex_(0).submenu()
+    if application_menu is None:
+        raise RuntimeError("Cannot find the macOS application submenu")
+    item = ObjCClass("NSMenuItem").alloc().initWithTitle_action_keyEquivalent_(
+        get_NSString("Switch to Windowed Mode"),
+        get_selector("leaveBorderless:"),
+        get_NSString(""),
+    )
+    if item is None:
+        raise RuntimeError("Cannot create the macOS windowed-mode menu item")
+    item.setTarget_(target)
+    application_menu.insertItem_atIndex_(item, 1)
+    return application_menu, item
+
+
 class MacOSFullscreen(EventDispatcher):
-    """Use a borderless window without entering a native fullscreen Space."""
+    """Use a borderless window without entering a native fullscreen Space.
+
+    The application menu exposes a windowed-mode action while this custom
+    fullscreen state is active.
+    """
 
     def __init__(self, window: CocoaWindow) -> None:
         super().__init__()
@@ -52,6 +92,10 @@ class MacOSFullscreen(EventDispatcher):
             raise RuntimeError("Cannot configure fullscreen for a closed window")
         self._collection = native.collectionBehavior()
         self._target = _make_target(self)
+        self._application_menu, self._windowed_item = (
+            _make_windowed_menu_item(self._target)
+        )
+        self._windowed_item.setEnabled_(False)
         button = native.standardWindowButton_(2)
         self._button_target = button.target()
         self._button_action = button.action()
@@ -107,6 +151,7 @@ class MacOSFullscreen(EventDispatcher):
             self._saved = None
             # Cocoa recreates title-bar buttons when their style is restored.
             self._wire_button()
+        self._windowed_item.setEnabled_(fullscreen)
         native.makeKeyAndOrderFront_(None)
         # Changing style discards pyglet's text/key responder.
         if not native.makeFirstResponder_(self._responder):
@@ -116,6 +161,10 @@ class MacOSFullscreen(EventDispatcher):
     def on_toggle_fullscreen(self) -> None:
         if not self._closed:
             self.set_fullscreen(not self.fullscreen)
+
+    def on_leave_fullscreen(self) -> None:
+        if not self._closed and self.fullscreen:
+            self.set_fullscreen(False)
 
     def close(self) -> None:
         if self._closed:
@@ -129,8 +178,11 @@ class MacOSFullscreen(EventDispatcher):
                 button.setTarget_(self._button_target)
                 button.setAction_(self._button_action)
             self._window._nswindow.setCollectionBehavior_(self._collection)
+        self._application_menu.removeItem_(self._windowed_item)
+        self._windowed_item.release()
         self._target.controller = None
         self._target.release()
 
 
 MacOSFullscreen.register_event_type("on_toggle_fullscreen")
+MacOSFullscreen.register_event_type("on_leave_fullscreen")

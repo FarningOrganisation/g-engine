@@ -3,12 +3,17 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from os import PathLike
 from pathlib import Path
-from typing import TypeAlias, TypeVar
+from typing import TypeAlias, TypeVar, cast
 
 import pyglet
 
 from .components import ShapeStyle, SpriteAnimation
 from .input import Input, Key, Modifiers, MouseButton
+from .geometry import (
+    DashPattern,
+    dashed_line_segments,
+    validate_dash_pattern,
+)
 from .nodes import GameObject
 from .objects import StatefulGameObject
 from .project import ProjectConfig
@@ -21,10 +26,17 @@ from .resources import (
     ResourceBundle,
     ResourceManager,
     TextureFilter,
+    source_of,
 )
 from .math import Vec2
 from .network import NetworkSession
-from .runtime import NullBatch, NullDrawable, set_presentation_enabled
+from .runtime import (
+    NullBatch,
+    NullDrawable,
+    begin_direct_draw,
+    end_direct_draw,
+    set_presentation_enabled,
+)
 from .scene import LayerSelector, Scene, SceneManager
 from .timing import SceneTime
 
@@ -41,6 +53,7 @@ MouseDragHandler: TypeAlias = Callable[
 MouseScrollHandler: TypeAlias = Callable[[float, float, float, float], None]
 LoadingProgressHandler: TypeAlias = Callable[[float], None]
 LoadingCompleteHandler: TypeAlias = Callable[[], None]
+DrawHandler: TypeAlias = Callable[[], None]
 GameObjectType = TypeVar("GameObjectType", bound=GameObject)
 
 
@@ -120,6 +133,23 @@ class Game:
         self._loading_bundle: ResourceBundle | None = None
         self._loading_progress_handler: LoadingProgressHandler | None = None
         self._loading_complete_handler: LoadingCompleteHandler | None = None
+        self._draw_handler: DrawHandler | None = None
+        self._direct_draw_active = False
+        self._direct_draw_cursor = 0
+        self._direct_draw_batch = (
+            pyglet.graphics.Batch()
+            if presentation_enabled
+            else NullBatch()
+        )
+        self._direct_draw_cache: list[
+            tuple[
+                object,
+                tuple[
+                    pyglet.shapes.ShapeBase | pyglet.sprite.Sprite,
+                    ...,
+                ],
+            ]
+        ] = []
         self._key_down_handlers: list[KeyHandler] = []
         self._key_pressed_handlers: list[PressedKeyHandler] = []
         self._key_up_handlers: list[KeyHandler] = []
@@ -579,8 +609,13 @@ class Game:
         *,
         z_index: int | None = None,
         screen_space: bool = False,
+        dash_pattern: DashPattern | None = None,
     ) -> GameObject:
-        """Create and add a line between two virtual-pixel positions."""
+        """Create and add a solid or dashed line between two positions.
+
+        ``dash_pattern`` optionally provides positive ``(dash, gap)`` lengths
+        in local pixels.
+        """
         return self.scenes.current.add_line(
             start,
             end,
@@ -589,6 +624,7 @@ class Game:
             layer,
             z_index=z_index,
             screen_space=screen_space,
+            dash_pattern=dash_pattern,
         )
 
     def add_triangle(
@@ -634,6 +670,317 @@ class Game:
             style=style,
             screen_space=screen_space,
         )
+
+    def draw_circle(
+        self,
+        x: float,
+        y: float,
+        radius: float,
+        color: Color = (255, 255, 255),
+        *,
+        style: ShapeStyle | None = None,
+    ) -> None:
+        """Immediately draw a circle centered at ``(x, y)``.
+
+        Call this from :meth:`on_draw` or a ``run(draw=...)`` callback.
+        Coordinates are virtual screen pixels.
+        """
+        if not self.presentation_enabled:
+            raise RuntimeError(
+                "cannot draw primitives when presentation is disabled"
+            )
+        if radius < 0:
+            raise ValueError("radius must not be negative")
+        resolved = style or ShapeStyle(fill=color)
+        drawables = self._direct_drawables(
+            ("circle", resolved.fill is not None, resolved.outline is not None),
+            lambda: (
+                *(
+                    (
+                        pyglet.shapes.Circle(
+                            x,
+                            y,
+                            radius,
+                            color=resolved.fill,
+                            batch=self._direct_draw_batch,
+                        ),
+                    )
+                    if resolved.fill is not None else ()
+                ),
+                *(
+                    (
+                        pyglet.shapes.Arc(
+                            x,
+                            y,
+                            radius,
+                            closed=True,
+                            thickness=resolved.outline_thickness,
+                            color=resolved.outline,
+                            batch=self._direct_draw_batch,
+                        ),
+                    )
+                    if resolved.outline is not None else ()
+                ),
+            ),
+        )
+        index = 0
+        if resolved.fill is not None:
+            fill = drawables[index]
+            fill.position = x, y
+            fill.radius = radius
+            fill.color = resolved.fill
+            index += 1
+        if resolved.outline is not None:
+            outline = drawables[index]
+            outline.position = x, y
+            outline.radius = radius
+            outline.thickness = resolved.outline_thickness
+            outline.color = resolved.outline
+        self._draw_direct_drawables(drawables)
+
+    def draw_rect(
+        self,
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        color: Color = (255, 255, 255),
+        angle: float = 0,
+        *,
+        style: ShapeStyle | None = None,
+    ) -> None:
+        """Immediately draw a rectangle centered at ``(x, y)``.
+
+        ``angle`` is measured in degrees. Call this during direct drawing;
+        coordinates and dimensions are virtual screen pixels.
+        """
+        if not self.presentation_enabled:
+            raise RuntimeError(
+                "cannot draw primitives when presentation is disabled"
+            )
+        if width < 0 or height < 0:
+            raise ValueError("width and height must not be negative")
+        resolved = style or ShapeStyle(fill=color)
+        drawables = self._direct_drawables(
+            ("rect", resolved.fill is not None, resolved.outline is not None),
+            lambda: (
+                *(
+                    (
+                        pyglet.shapes.Rectangle(
+                            x,
+                            y,
+                            width,
+                            height,
+                            color=resolved.fill,
+                            batch=self._direct_draw_batch,
+                        ),
+                    )
+                    if resolved.fill is not None else ()
+                ),
+                *(
+                    (
+                        pyglet.shapes.Box(
+                            x,
+                            y,
+                            width,
+                            height,
+                            thickness=resolved.outline_thickness,
+                            color=resolved.outline,
+                            batch=self._direct_draw_batch,
+                        ),
+                    )
+                    if resolved.outline is not None else ()
+                ),
+            ),
+        )
+        for drawable in drawables:
+            drawable.position = x, y
+            drawable.width = width
+            drawable.height = height
+            drawable.anchor_position = width / 2, height / 2
+            drawable.rotation = angle
+        index = 0
+        if resolved.fill is not None:
+            drawables[index].color = resolved.fill
+            index += 1
+        if resolved.outline is not None:
+            drawables[index].color = resolved.outline
+            drawables[index].thickness = resolved.outline_thickness
+        self._draw_direct_drawables(drawables)
+
+    def draw_line(
+        self,
+        start: tuple[float, float],
+        end: tuple[float, float],
+        color: Color = (255, 255, 255),
+        thickness: float = 1,
+        *,
+        dash_pattern: DashPattern | None = None,
+    ) -> None:
+        """Immediately draw a solid or dashed line in virtual screen pixels."""
+        if not self.presentation_enabled:
+            raise RuntimeError(
+                "cannot draw primitives when presentation is disabled"
+            )
+        if start == end:
+            raise ValueError("line endpoints must be different")
+        if thickness <= 0:
+            raise ValueError("thickness must be positive")
+        pattern = validate_dash_pattern(dash_pattern)
+        segments = dashed_line_segments(start, end, pattern)
+        drawables = self._direct_drawables(
+            ("line", len(segments)),
+            lambda: tuple(
+                pyglet.shapes.Line(
+                    *segment_start, *segment_end,
+                    thickness=thickness, color=color,
+                    batch=self._direct_draw_batch,
+                )
+                for segment_start, segment_end in segments
+            ),
+        )
+        for line, (segment_start, segment_end) in zip(
+            drawables,
+            segments,
+        ):
+            line.x, line.y = segment_start
+            line.x2, line.y2 = segment_end
+            line.thickness = thickness
+            line.color = color
+        self._draw_direct_drawables(drawables)
+
+    def draw_triangle(
+        self,
+        first: tuple[float, float],
+        second: tuple[float, float],
+        third: tuple[float, float],
+        color: Color = (255, 255, 255),
+        *,
+        style: ShapeStyle | None = None,
+    ) -> None:
+        """Immediately draw a triangle from three virtual screen vertices."""
+        if not self.presentation_enabled:
+            raise RuntimeError(
+                "cannot draw primitives when presentation is disabled"
+            )
+        points = (first, second, third)
+        if len(set(points)) != 3:
+            raise ValueError("triangle points must be different")
+        resolved = style or ShapeStyle(fill=color)
+        drawables = self._direct_drawables(
+            ("triangle", resolved.fill is not None, resolved.outline is not None),
+            lambda: (
+                *(
+                    (
+                        pyglet.shapes.Triangle(
+                            *first,
+                            *second,
+                            *third,
+                            color=resolved.fill,
+                            batch=self._direct_draw_batch,
+                        ),
+                    )
+                    if resolved.fill is not None else ()
+                ),
+                *(
+                    tuple(
+                        pyglet.shapes.Line(
+                            *start,
+                            *end,
+                            thickness=resolved.outline_thickness,
+                            color=resolved.outline,
+                            batch=self._direct_draw_batch,
+                        )
+                        for start, end in zip(
+                            points,
+                            (*points[1:], points[0]),
+                        )
+                    )
+                    if resolved.outline is not None else ()
+                ),
+            ),
+        )
+        index = 0
+        if resolved.fill is not None:
+            fill = drawables[index]
+            fill.position = first
+            fill.x2, fill.y2 = second
+            fill.x3, fill.y3 = third
+            fill.color = resolved.fill
+            index += 1
+        if resolved.outline is not None:
+            for outline, start, end in zip(
+                drawables[index:],
+                points,
+                (*points[1:], points[0]),
+            ):
+                outline.position = start
+                outline.x2, outline.y2 = end
+                outline.thickness = resolved.outline_thickness
+                outline.color = resolved.outline
+        self._draw_direct_drawables(drawables)
+
+    def draw_polygon(
+        self,
+        points: Sequence[tuple[float, float]],
+        color: Color = (255, 255, 255),
+        *,
+        style: ShapeStyle | None = None,
+    ) -> None:
+        """Immediately draw a polygon from virtual screen vertices."""
+        if not self.presentation_enabled:
+            raise RuntimeError(
+                "cannot draw primitives when presentation is disabled"
+            )
+        vertices = tuple(points)
+        if len(vertices) < 3 or len(set(vertices)) < 3:
+            raise ValueError("polygon requires at least three different points")
+        resolved = style or ShapeStyle(fill=color)
+        drawables = self._direct_drawables(
+            (
+                "polygon",
+                vertices,
+                resolved.fill is not None,
+                resolved.outline is not None,
+            ),
+            lambda: (
+                *(
+                    (
+                        pyglet.shapes.Polygon(
+                            *vertices,
+                            color=resolved.fill,
+                            batch=self._direct_draw_batch,
+                        ),
+                    )
+                    if resolved.fill is not None else ()
+                ),
+                *(
+                    tuple(
+                        pyglet.shapes.Line(
+                            *start,
+                            *end,
+                            thickness=resolved.outline_thickness,
+                            color=resolved.outline,
+                            batch=self._direct_draw_batch,
+                        )
+                        for start, end in zip(
+                            vertices,
+                            (*vertices[1:], vertices[0]),
+                        )
+                    )
+                    if resolved.outline is not None else ()
+                ),
+            ),
+        )
+        index = 0
+        if resolved.fill is not None:
+            drawables[index].color = resolved.fill
+            index += 1
+        if resolved.outline is not None:
+            for outline in drawables[index:]:
+                outline.thickness = resolved.outline_thickness
+                outline.color = resolved.outline
+        self._draw_direct_drawables(drawables)
 
     def add_area_box(
         self, x: float, y: float, width: float, height: float,
@@ -821,6 +1168,122 @@ class Game:
     def _draw_ui(self) -> None:
         self.scenes.current._draw_ui()
 
+    def _direct_drawables(
+        self,
+        key: object,
+        create: Callable[
+            [],
+            tuple[
+                pyglet.shapes.ShapeBase | pyglet.sprite.Sprite,
+                ...,
+            ],
+        ],
+    ) -> tuple[
+        pyglet.shapes.ShapeBase | pyglet.sprite.Sprite,
+        ...,
+    ]:
+        if not self._direct_draw_active:
+            raise RuntimeError(
+                "direct draw helpers may only be called from on_draw "
+                "or a run(draw=...) callback"
+            )
+        index = self._direct_draw_cursor
+        self._direct_draw_cursor += 1
+        if index < len(self._direct_draw_cache):
+            cached_key, cached_drawables = self._direct_draw_cache[index]
+            if cached_key == key:
+                return cached_drawables
+            drawables = create()
+            for drawable in cached_drawables:
+                drawable.delete()
+            self._direct_draw_cache[index] = key, drawables
+            return drawables
+        drawables = create()
+        self._direct_draw_cache.append((key, drawables))
+        return drawables
+
+    @staticmethod
+    def _draw_direct_drawables(
+        drawables: Sequence[
+            pyglet.shapes.ShapeBase | pyglet.sprite.Sprite
+        ],
+    ) -> None:
+        del drawables
+
+    def _draw_image(
+        self,
+        image: Image,
+        x: float,
+        y: float,
+        *,
+        width: float | None,
+        height: float | None,
+    ) -> None:
+        if not self.presentation_enabled:
+            raise RuntimeError(
+                "cannot draw an image when presentation is disabled"
+            )
+
+        def create() -> tuple[pyglet.sprite.Sprite]:
+            source = source_of(image)
+            if source is None:
+                raise RuntimeError(
+                    "cannot draw an image when presentation is disabled"
+                )
+            texture = source.get_texture()
+            region = texture.get_region(
+                0,
+                0,
+                texture.width,
+                texture.height,
+            )
+            region.anchor_x = 0
+            region.anchor_y = 0
+            return (
+                pyglet.sprite.Sprite(
+                    region,
+                    x,
+                    y,
+                    batch=self._direct_draw_batch,
+                ),
+            )
+
+        sprite = cast(
+            pyglet.sprite.Sprite,
+            self._direct_drawables(("image", id(image)), create)[0],
+        )
+        position = (x, y, sprite.z)
+        if sprite.position != position:
+            sprite.position = position
+        scale_x = 1 if width is None else width / image.width
+        scale_y = 1 if height is None else height / image.height
+        if sprite.scale_x != scale_x:
+            sprite.scale_x = scale_x
+        if sprite.scale_y != scale_y:
+            sprite.scale_y = scale_y
+
+    def _clear_direct_draw_cache(self, start: int = 0) -> None:
+        stale = self._direct_draw_cache[start:]
+        del self._direct_draw_cache[start:]
+        for _, drawables in stale:
+            for drawable in drawables:
+                drawable.delete()
+
+    def _draw_direct(self) -> None:
+        self._direct_draw_cursor = 0
+        self._direct_draw_active = True
+        token = begin_direct_draw(self)
+        try:
+            self.on_draw()
+            if self._draw_handler is not None:
+                self._draw_handler()
+            self._clear_direct_draw_cache(self._direct_draw_cursor)
+            self._direct_draw_batch.draw()
+        finally:
+            end_direct_draw(token)
+            self._direct_draw_active = False
+            self._clear_direct_draw_cache(self._direct_draw_cursor)
+
     def _draw_transition(self) -> None:
         transition = self.scenes.transition
         if transition is None:
@@ -844,6 +1307,7 @@ class Game:
         try:
             self.on_stop()
         finally:
+            self._clear_direct_draw_cache()
             self.network.disconnect()
             self._started = False
 
@@ -855,12 +1319,21 @@ class Game:
         """Hook called when the game loop stops; override as needed."""
         pass
 
+    def on_draw(self) -> None:
+        """Draw ad-hoc graphics for the current frame; override as needed.
+
+        Drawing uses virtual screen coordinates and happens after scene objects
+        and UI, but before scene transitions.
+        """
+        pass
+
     def run(
         self,
         title: str = "Game",
         *,
         interval: float = 1 / 60,
         update: Callable[[float], None] | None = None,
+        draw: DrawHandler | None = None,
         window_width: int | None = None,
         window_height: int | None = None,
         fullscreen: bool | None = None,
@@ -869,12 +1342,15 @@ class Game:
         """Create a window and run the game loop until the window closes.
 
         The optional ``update`` callback runs after each scene update and
-        receives the fixed simulation step in seconds.
+        receives the fixed simulation step in seconds. The optional ``draw``
+        callback runs once per rendered frame in virtual screen coordinates,
+        after scene objects and UI.
 
         Args:
             title (str): Window title.
             interval (float): Fixed simulation step in seconds.
             update (Callable[[float], None] | None): Optional callback receiving each fixed step in seconds.
+            draw (DrawHandler | None): Optional callback for ad-hoc per-frame drawing.
             window_width (int | None): Output window width; defaults to the virtual width.
             window_height (int | None): Output window height; defaults to the virtual height.
             fullscreen (bool | None): Overrides the configured fullscreen setting.
@@ -898,7 +1374,7 @@ class Game:
             ),
         )
         window.show_game(self)
-        window.run(update, interval)
+        window.run(update, interval, draw=draw)
 
     def run_server(
         self,

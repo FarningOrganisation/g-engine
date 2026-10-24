@@ -22,6 +22,7 @@ from .components import (
     SpriteAnimation,
 )
 from .grid import Grid
+from .geometry import DashPattern
 from .navigation import NavigationAgent, NavigationWorld
 from .nodes import GameObject, Node
 from .objects import (
@@ -1078,8 +1079,9 @@ class Scene:
         *,
         z_index: int | None = None,
         screen_space: bool = False,
+        dash_pattern: DashPattern | None = None,
     ) -> GameObject:
-        """Create and add a line between two virtual-pixel points."""
+        """Create and add a solid or dashed line between two virtual-pixel points."""
         target, order = self._placement(layer, z_index)
         return self.add(
             create_line(
@@ -1089,6 +1091,7 @@ class Scene:
                 thickness,
                 z_index=order or 0,
                 screen_space=screen_space,
+                dash_pattern=dash_pattern,
             ),
             layer=target,
         )

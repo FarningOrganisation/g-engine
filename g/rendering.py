@@ -225,6 +225,7 @@ class SceneRenderer:
                     scene._draw()
                 window.view = previous_view
                 scene._draw_ui()
+                game._draw_direct()
             finally:
                 if effect is not None and effect.enabled:
                     effect.end()

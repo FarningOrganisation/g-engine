@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from g import (
     Collider,
@@ -15,6 +15,7 @@ from g import (
     SpriteRenderer,
     StatefulGameObject,
     TextRenderer,
+    TextureFilter,
     TriangleRenderer,
     Vec2,
     create_circle,
@@ -80,6 +81,221 @@ class GameFactoryTests(unittest.TestCase):
                     shape.require_component(renderer_type).color,
                     (255, 255, 255, 255),
                 )
+
+    def test_direct_draw_helpers_render_and_delete_primitives(self) -> None:
+        constructors = {
+            name: patch(f"g.game.pyglet.shapes.{name}")
+            for name in ("Circle", "Rectangle", "Line", "Triangle", "Polygon")
+        }
+        mocks = {name: manager.start() for name, manager in constructors.items()}
+        self.addCleanup(
+            lambda: [manager.stop() for manager in constructors.values()]
+        )
+
+        def draw() -> None:
+            self.game.draw_circle(10, 20, 5, (1, 2, 3))
+            self.game.draw_rect(30, 40, 20, 10, (4, 5, 6), angle=15)
+            self.game.draw_line((1, 2), (3, 4), (7, 8, 9), thickness=2)
+            self.game.draw_triangle(
+                (0, 0), (10, 0), (5, 8), (10, 11, 12)
+            )
+            self.game.draw_polygon(
+                ((0, 0), (10, 0), (10, 10), (0, 10)),
+                (13, 14, 15),
+            )
+
+        self.game._draw_handler = draw
+        with patch.object(
+            self.game._direct_draw_batch,
+            "draw",
+        ) as draw_batch:
+            self.game._draw_direct()
+            self.game._draw_direct()
+        self.assertEqual(draw_batch.call_count, 2)
+
+        mocks["Circle"].assert_called_once_with(
+            10, 20, 5, color=(1, 2, 3),
+            batch=self.game._direct_draw_batch,
+        )
+        mocks["Rectangle"].assert_called_once_with(
+            30, 40, 20, 10, color=(4, 5, 6),
+            batch=self.game._direct_draw_batch,
+        )
+        rectangle = mocks["Rectangle"].return_value
+        self.assertEqual(rectangle.anchor_position, (10, 5))
+        self.assertEqual(rectangle.rotation, 15)
+        mocks["Line"].assert_called_once_with(
+            1, 2, 3, 4, thickness=2, color=(7, 8, 9),
+            batch=self.game._direct_draw_batch,
+        )
+        mocks["Triangle"].assert_called_once_with(
+            0, 0, 10, 0, 5, 8, color=(10, 11, 12),
+            batch=self.game._direct_draw_batch,
+        )
+        mocks["Polygon"].assert_called_once_with(
+            (0, 0),
+            (10, 0),
+            (10, 10),
+            (0, 10),
+            color=(13, 14, 15),
+            batch=self.game._direct_draw_batch,
+        )
+        for constructor in mocks.values():
+            constructor.return_value.draw.assert_not_called()
+            constructor.return_value.delete.assert_not_called()
+
+        self.game._clear_direct_draw_cache()
+
+        for constructor in mocks.values():
+            constructor.return_value.delete.assert_called_once_with()
+
+    @patch("g.game.pyglet.shapes.Arc")
+    @patch("g.game.pyglet.shapes.Circle")
+    def test_direct_circle_batches_fill_and_outline(
+        self,
+        circle_type: Mock,
+        arc_type: Mock,
+    ) -> None:
+        style = ShapeStyle(
+            fill=(1, 2, 3),
+            outline=(4, 5, 6),
+            outline_thickness=3,
+        )
+
+        self.game._draw_handler = lambda: self.game.draw_circle(
+            10, 20, 5, style=style
+        )
+        self.game._draw_direct()
+
+        arc_type.assert_called_once_with(
+            10,
+            20,
+            5,
+            closed=True,
+            thickness=3,
+            color=(4, 5, 6),
+            batch=self.game._direct_draw_batch,
+        )
+        circle_type.return_value.draw.assert_not_called()
+        arc_type.return_value.draw.assert_not_called()
+        self.game._clear_direct_draw_cache()
+        self.assertEqual(
+            [circle_type.return_value.delete.call_count,
+             arc_type.return_value.delete.call_count],
+            [1, 1],
+        )
+
+    def test_direct_draw_helpers_validate_geometry(self) -> None:
+        invalid_calls = (
+            lambda: self.game.draw_circle(0, 0, -1),
+            lambda: self.game.draw_rect(0, 0, -1, 1),
+            lambda: self.game.draw_line((0, 0), (0, 0)),
+            lambda: self.game.draw_line((0, 0), (1, 0), thickness=0),
+            lambda: self.game.draw_triangle((0, 0), (0, 0), (1, 0)),
+            lambda: self.game.draw_polygon(((0, 0), (1, 0))),
+        )
+
+        for invalid_call in invalid_calls:
+            with self.subTest(call=invalid_call), self.assertRaises(ValueError):
+                invalid_call()
+
+    def test_direct_draw_helpers_reject_headless_games(self) -> None:
+        game = Game(10, 10, presentation_enabled=False)
+
+        with self.assertRaisesRegex(RuntimeError, "presentation is disabled"):
+            game.draw_circle(5, 5, 2)
+
+    def test_direct_draw_helpers_require_draw_callback(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "only be called"):
+            self.game.draw_circle(5, 5, 2)
+
+    @patch("g.game.source_of")
+    @patch("g.game.pyglet.sprite.Sprite")
+    def test_image_draw_reuses_sprite_between_frames(
+        self,
+        sprite_type: Mock,
+        source_of: Mock,
+    ) -> None:
+        image = Image.__new__(Image)
+        image._source = None
+        image._width = 18
+        image._height = 18
+        image.filtering = TextureFilter.LINEAR
+        source = source_of.return_value
+        source.get_texture.return_value.width = 18
+        source.get_texture.return_value.height = 18
+        sprite = sprite_type.return_value
+        sprite.z = 0
+        self.game._draw_handler = lambda: image.draw(
+            20,
+            30,
+            width=36,
+            height=9,
+        )
+
+        with patch.object(
+            self.game._direct_draw_batch,
+            "draw",
+        ) as draw_batch:
+            self.game._draw_direct()
+            self.game._draw_direct()
+
+        source_of.assert_called_once_with(image)
+        source.blit.assert_not_called()
+        sprite_type.assert_called_once()
+        self.assertEqual(sprite.position, (20, 30, 0))
+        self.assertEqual(sprite.scale_x, 2)
+        self.assertEqual(sprite.scale_y, 0.5)
+        sprite.draw.assert_not_called()
+        self.assertEqual(draw_batch.call_count, 2)
+
+    @patch("g.game.pyglet.shapes.Line")
+    def test_direct_draw_line_supports_dash_pattern(
+        self,
+        line_type: Mock,
+    ) -> None:
+        drawables = [Mock(), Mock(), Mock()]
+        line_type.side_effect = drawables
+        self.game._draw_handler = lambda: self.game.draw_line(
+            (0, 0),
+            (20, 0),
+            thickness=2,
+            dash_pattern=(5, 3),
+        )
+
+        with patch.object(
+            self.game._direct_draw_batch,
+            "draw",
+        ) as draw_batch:
+            self.game._draw_direct()
+
+        self.assertEqual(
+            [
+                (drawable.x, drawable.y, drawable.x2, drawable.y2)
+                for drawable in drawables
+            ],
+            [
+                (0, 0, 5, 0),
+                (8, 0, 13, 0),
+                (16, 0, 20, 0),
+            ],
+        )
+        for drawable in drawables:
+            drawable.draw.assert_not_called()
+        draw_batch.assert_called_once_with()
+
+    @patch("g.game.pyglet.shapes.Circle")
+    def test_direct_draw_removes_commands_missing_from_next_frame(
+        self,
+        circle_type: Mock,
+    ) -> None:
+        self.game._draw_handler = lambda: self.game.draw_circle(5, 5, 2)
+        self.game._draw_direct()
+        self.game._draw_handler = None
+
+        self.game._draw_direct()
+
+        circle_type.return_value.delete.assert_called_once_with()
 
     def test_image_and_text_helpers(self) -> None:
         image = Image.solid(8, 6, (255, 255, 255))

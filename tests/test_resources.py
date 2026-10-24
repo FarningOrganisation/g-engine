@@ -48,6 +48,12 @@ class TextureTests(unittest.TestCase):
             ],
         )
 
+    def test_image_draw_requires_direct_draw_callback(self) -> None:
+        image = Image.__new__(Image)
+
+        with self.assertRaisesRegex(RuntimeError, "only be called"):
+            image.draw(0, 0)
+
 
 class SoundTests(unittest.TestCase):
     @patch("g.resources.pyglet.media.load")

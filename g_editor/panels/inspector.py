@@ -422,6 +422,7 @@ class InspectorPanel(EditorPanel):
             "label",
             "button",
             "toggle",
+            "checkbox",
             "text_input",
         }:
             changed, text = self._text_property(
@@ -430,7 +431,13 @@ class InspectorPanel(EditorPanel):
             )
             if changed:
                 self.state.set_gui_element_value("text", text)
-        if element_type in {"label", "button", "toggle"}:
+        if element_type in {
+            "label",
+            "button",
+            "toggle",
+            "checkbox",
+            "dropdown",
+        }:
             font = element.get("font")
             self._draw_asset_reference_field(
                 "Font",
@@ -456,14 +463,14 @@ class InspectorPanel(EditorPanel):
                     "font_size",
                     font_size,
                 )
-        if element_type == "toggle":
+        if element_type in {"toggle", "checkbox"}:
             changed, value = self._bool_property(
                 "Value",
                 bool(element.get("value", False)),
             )
             if changed:
                 self.state.set_gui_element_value("value", value)
-        if element_type == "slider":
+        if element_type in {"slider", "progress_bar"}:
             raw_minimum = element.get("minimum", 0)
             raw_maximum = element.get("maximum", 1)
             raw_value = element.get("value", 0)
@@ -504,7 +511,8 @@ class InspectorPanel(EditorPanel):
                     minimum = new_minimum
                 else:
                     self.state.error = (
-                        "Slider minimum must be less than maximum"
+                        f"{str(element_type).replace('_', ' ').title()} "
+                        "minimum must be less than maximum"
                     )
             changed, new_maximum = self._float_property(
                 "Maximum",
@@ -525,7 +533,8 @@ class InspectorPanel(EditorPanel):
                     maximum = new_maximum
                 else:
                     self.state.error = (
-                        "Slider maximum must be greater than minimum"
+                        f"{str(element_type).replace('_', ' ').title()} "
+                        "maximum must be greater than minimum"
                     )
             changed, value = self._slider_property(
                 "Value",
@@ -535,6 +544,126 @@ class InspectorPanel(EditorPanel):
             )
             if changed:
                 self.state.set_gui_element_value("value", value)
+        if element_type == "image":
+            image = element.get("image")
+            self._draw_asset_reference_field(
+                "Image",
+                image if isinstance(image, str) else "",
+                f"gui-image:{element.get('id', '')}",
+                kind="image",
+            )
+            fits = ["contain", "cover", "stretch", "native"]
+            current_fit = str(element.get("fit", "contain"))
+            fit_index = (
+                fits.index(current_fit) if current_fit in fits else 0
+            )
+            changed, fit_index = self._choice_property(
+                "Fit",
+                fit_index,
+                fits,
+            )
+            if changed:
+                self.state.set_gui_element_value(
+                    "fit",
+                    fits[fit_index],
+                )
+        if element_type == "dropdown":
+            raw_options = element.get("options", [])
+            options = (
+                [str(option) for option in raw_options]
+                if isinstance(raw_options, list)
+                else []
+            )
+            changed, text = self._text_property(
+                "Options (comma separated)",
+                ", ".join(options),
+            )
+            if changed:
+                options = [
+                    option.strip()
+                    for option in text.split(",")
+                    if option.strip()
+                ]
+                self.state.set_gui_element_value(
+                    "options",
+                    cast(JsonValue, options),
+                )
+                selected = element.get("selected_index")
+                if isinstance(selected, int) and selected >= len(options):
+                    self.state.set_gui_element_value(
+                        "selected_index",
+                        0 if options else None,
+                    )
+            if options:
+                selected = element.get("selected_index", 0)
+                selected_index = (
+                    selected
+                    if isinstance(selected, int)
+                    and not isinstance(selected, bool)
+                    and 0 <= selected < len(options)
+                    else 0
+                )
+                changed, selected_index = self._choice_property(
+                    "Selected",
+                    selected_index,
+                    options,
+                )
+                if changed:
+                    self.state.set_gui_element_value(
+                        "selected_index",
+                        selected_index,
+                    )
+        if element_type in {"scroll", "list_view"}:
+            raw_speed = element.get("scroll_speed", 32)
+            scroll_speed = (
+                float(raw_speed)
+                if isinstance(raw_speed, (int, float))
+                and not isinstance(raw_speed, bool)
+                else 32
+            )
+            changed, scroll_speed = self._float_property(
+                "Scroll Speed",
+                scroll_speed,
+                minimum=1,
+            )
+            if changed:
+                self.state.set_gui_element_value(
+                    "scroll_speed",
+                    scroll_speed,
+                )
+            for label, key_name, default in (
+                ("Scrollbar Width", "scrollbar_width", 10),
+                ("Minimum Thumb", "minimum_thumb", 24),
+            ):
+                raw_value = element.get(key_name, default)
+                value = (
+                    float(raw_value)
+                    if isinstance(raw_value, (int, float))
+                    and not isinstance(raw_value, bool)
+                    else default
+                )
+                changed, value = self._float_property(
+                    label,
+                    value,
+                    minimum=1,
+                )
+                if changed:
+                    self.state.set_gui_element_value(key_name, value)
+        if element_type == "list_view":
+            raw_spacing = element.get("spacing", 0)
+            spacing = (
+                float(raw_spacing)
+                if isinstance(raw_spacing, (int, float))
+                and not isinstance(raw_spacing, bool)
+                else 0
+            )
+            changed, spacing = self._float_property(
+                "Row Spacing",
+                spacing,
+                minimum=0,
+            )
+            if changed:
+                self.state.set_gui_element_value("spacing", spacing)
         if element_type in {"stack", "vbox", "hbox", "grid"}:
             self._draw_gui_box_values(
                 element,
@@ -659,6 +788,32 @@ class InspectorPanel(EditorPanel):
                 ("Selected", "pressed"),
                 ("Disabled", "disabled"),
                 ("Text Color", "text_color"),
+            ),
+            "progress_bar": (
+                ("Background", "background"),
+                ("Fill", "fill"),
+            ),
+            "checkbox": (
+                ("Box", "box"),
+                ("Check", "check"),
+                ("Disabled", "disabled"),
+                ("Text Color", "text_color"),
+            ),
+            "dropdown": (
+                ("Background", "background"),
+                ("Options", "options_color"),
+                ("Selected", "selected_color"),
+                ("Disabled", "disabled"),
+                ("Text Color", "text_color"),
+            ),
+            "scroll": (
+                ("Scrollbar Track", "scrollbar_track"),
+                ("Scrollbar Thumb", "scrollbar_thumb"),
+            ),
+            "list_view": (
+                ("Selection", "selected_color"),
+                ("Scrollbar Track", "scrollbar_track"),
+                ("Scrollbar Thumb", "scrollbar_thumb"),
             ),
             "text_input": (
                 ("Background", "color"),

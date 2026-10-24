@@ -164,6 +164,20 @@ class GameLifecycleTests(unittest.TestCase):
 
         self.assertEqual(events, ["start", "stop"])
 
+    def test_draw_hook_and_callback_run_in_order(self) -> None:
+        events: list[str] = []
+
+        class LifecycleGame(Game):
+            def on_draw(self) -> None:
+                events.append("hook")
+
+        game = LifecycleGame(320, 180)
+        game._draw_handler = lambda: events.append("callback")
+
+        game._draw_direct()
+
+        self.assertEqual(events, ["hook", "callback"])
+
 
 if __name__ == "__main__":
     unittest.main()

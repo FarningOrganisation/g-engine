@@ -1073,6 +1073,7 @@ class AssetsPanel(EditorPanel):
             "particle-image:",
             "font:",
             "gui-font:",
+            "gui-image:",
         ))
 
     def _clear_asset(self, target: _AssetPickerTarget) -> None:
@@ -1099,6 +1100,8 @@ class AssetsPanel(EditorPanel):
             )
         elif target.field_id.startswith("gui-font:"):
             self.state.set_gui_element_value("font", None)
+        elif target.field_id.startswith("gui-image:"):
+            self.state.set_gui_element_value("image", None)
         else:
             self.state.clear_selected_sprite_image()
         self._json_buffers[target.field_id] = ""
@@ -1185,6 +1188,8 @@ class AssetsPanel(EditorPanel):
             )
         elif target.field_id.startswith("gui-font:"):
             self.state.set_gui_element_value("font", relative)
+        elif target.field_id.startswith("gui-image:"):
+            self.state.set_gui_element_value("image", relative)
         elif target.field_id.startswith("tileset-path:"):
             self._json_buffers[target.field_id] = relative
         elif target.field_id == "image-collection-new":

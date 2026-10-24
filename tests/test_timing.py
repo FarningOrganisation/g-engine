@@ -149,6 +149,7 @@ class WindowTimingTests(unittest.TestCase):
         game._stop = Mock()
         game._update = Mock()
         user_update = Mock()
+        user_draw = Mock()
         window = Window.__new__(Window)
         window._macos_fullscreen = None
         window._game = game
@@ -156,13 +157,14 @@ class WindowTimingTests(unittest.TestCase):
 
         def drive_frames(*, interval: float) -> None:
             self.assertEqual(interval, 0)
+            self.assertIs(game._draw_handler, user_draw)
             process_frame = schedule.call_args.args[0]
             process_frame(1 / 120)
             process_frame(1 / 120)
 
         run.side_effect = drive_frames
 
-        window.run(user_update, interval=1 / 60)
+        window.run(user_update, interval=1 / 60, draw=user_draw)
 
         game._start.assert_called_once_with()
         game._update.assert_called_once_with(1 / 60)
@@ -171,6 +173,7 @@ class WindowTimingTests(unittest.TestCase):
         unschedule.assert_called_once_with(schedule.call_args.args[0])
         self.assertIsNone(window._interpolation)
         self.assertIsNone(window._accumulator)
+        self.assertIsNone(game._draw_handler)
 
     @patch("g.window.sys.platform", "linux")
     @patch("g.window.pyglet.clock.unschedule")

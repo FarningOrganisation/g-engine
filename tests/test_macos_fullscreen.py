@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 import sys
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 import pyglet
 
@@ -23,6 +23,14 @@ class MacOSFullscreenTests(unittest.TestCase):
         self.enterContext(patch.dict("sys.modules", {"pyglet.libs.darwin.cocoapy": cocoa}))
         self.target = Mock()
         self.enterContext(patch("g.macos_fullscreen._make_target", return_value=self.target))
+        self.application_menu = Mock()
+        self.windowed_item = Mock()
+        self.enterContext(
+            patch(
+                "g.macos_fullscreen._make_windowed_menu_item",
+                return_value=(self.application_menu, self.windowed_item),
+            )
+        )
         self.window = Mock()
         self.native = self.window._nswindow
         self.native.collectionBehavior.return_value = 1 << 7
@@ -38,15 +46,18 @@ class MacOSFullscreenTests(unittest.TestCase):
         button.setTarget_.assert_called_once_with(self.target)
         button.setAction_.assert_called_once_with("toggleBorderless:")
         self.native.setCollectionBehavior_.assert_called_once_with(1 << 7)
+        self.windowed_item.setEnabled_.assert_called_once_with(False)
 
     def test_toggle_uses_current_monitor_and_restores_frame_and_style(self):
         self.controller.on_toggle_fullscreen()
         self.assertTrue(self.controller.fullscreen)
+        self.windowed_item.setEnabled_.assert_called_with(True)
         self.native.setStyleMask_.assert_called_with(0)
         self.native.setFrame_display_.assert_called_with(self.screen_frame, True)
         self.native.frame.return_value = self.screen_frame
         self.controller.on_toggle_fullscreen()
         self.assertFalse(self.controller.fullscreen)
+        self.windowed_item.setEnabled_.assert_called_with(False)
         restored = self.native.setFrame_display_.call_args.args[0]
         self.assertEqual((restored.origin.x, restored.origin.y), (100, 200))
         self.assertEqual((restored.size.width, restored.size.height), (800, 600))
@@ -86,8 +97,20 @@ class MacOSFullscreenTests(unittest.TestCase):
         button.setTarget_.assert_called_with(target)
         button.setAction_.assert_called_with(action)
         self.native.setCollectionBehavior_.assert_called_with(1 << 7)
+        self.application_menu.removeItem_.assert_called_once_with(
+            self.windowed_item
+        )
+        self.windowed_item.release.assert_called_once()
         self.target.release.assert_called_once()
         self.native.setStyleMask_.assert_not_called()
+
+    def test_windowed_menu_item_leaves_fullscreen_only_when_needed(self):
+        self.controller.on_leave_fullscreen()
+        self.native.setStyleMask_.assert_not_called()
+        self.controller.set_fullscreen(True)
+        self.controller.on_leave_fullscreen()
+        self.assertFalse(self.controller.fullscreen)
+        self.native.setStyleMask_.assert_called_with(15)
 
     def test_cleanup_after_native_window_has_closed(self):
         self.window._nswindow = None
@@ -130,7 +153,7 @@ class FullscreenWindowTests(unittest.TestCase):
         window._macos_fullscreen.fullscreen = False
         return window
 
-    def test_mac_shortcuts_and_escape_are_consumed_before_game_input(self):
+    def test_mac_shortcuts_are_consumed_but_escape_reaches_game(self):
         window = self.make_window()
         key = pyglet.window.key
         for symbol, modifiers in ((key.F11, 0), (key.F, key.MOD_CTRL | key.MOD_COMMAND)):
@@ -138,8 +161,11 @@ class FullscreenWindowTests(unittest.TestCase):
             window._macos_fullscreen.set_fullscreen.assert_called_with(True)
         window._macos_fullscreen.fullscreen = True
         self.assertTrue(window._on_key_press(key.ESCAPE, 0))
-        window._macos_fullscreen.set_fullscreen.assert_called_with(False)
-        window._game._handle_key_press.assert_not_called()
+        self.assertNotIn(
+            call(False),
+            window._macos_fullscreen.set_fullscreen.mock_calls,
+        )
+        window._game._handle_key_press.assert_called_once_with(key.ESCAPE, 0)
 
     def test_normal_keys_and_windowed_escape_keep_game_behavior(self):
         window = self.make_window()
@@ -182,7 +208,7 @@ class CocoaFullscreenIntegrationTests(unittest.TestCase):
         )
         native.sendEvent_(event)
 
-    def test_real_green_button_repeatedly_enters_borderless_and_escape_restores(self):
+    def test_real_green_button_enters_borderless_and_escape_reaches_game(self):
         window = Window("Fullscreen regression", width=800, height=600)
         window._window._enable_event_queue = False
         game = Mock()
@@ -205,10 +231,15 @@ class CocoaFullscreenIntegrationTests(unittest.TestCase):
             self.send_key(window, "d", 2)
             game._handle_key_press.assert_called_with(pyglet.window.key.D, 0)
             self.send_key(window, "\x1b", 53)
-            self.assertFalse(window.fullscreen)
+            self.assertTrue(window.fullscreen)
+            game._handle_key_press.assert_called_with(
+                pyglet.window.key.ESCAPE,
+                0,
+            )
+            self.assertEqual(native.firstResponder(), responder)
+            window.set_fullscreen(False)
             restored = window._window.get_size(), window._window.get_location(), native.styleMask()
             self.assertEqual(restored, initial)
-            self.assertEqual(native.firstResponder(), responder)
 
     def test_real_native_callback_delivery_error_reaches_python(self):
         window = Window("Fullscreen callback regression", width=800, height=600)

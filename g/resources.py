@@ -235,6 +235,33 @@ class Image:
         """Image height in pixels."""
         return self._height if self._source is None else self._source.height
 
+    def draw(
+        self,
+        x: float,
+        y: float,
+        *,
+        width: float | None = None,
+        height: float | None = None,
+    ) -> None:
+        """Draw this image with its lower-left corner at ``x, y``.
+
+        Use this inside :meth:`Game.on_draw` or a ``Game.run(draw=...)``
+        callback. Coordinates and dimensions are virtual screen pixels. The
+        underlying sprite is cached and reused between frames.
+
+        Raises:
+            RuntimeError: If graphics presentation is disabled.
+        """
+        from .runtime import current_direct_draw_game
+
+        game = current_direct_draw_game()
+        if game is None:
+            raise RuntimeError(
+                "Image.draw may only be called from Game.on_draw "
+                "or a Game.run(draw=...) callback"
+            )
+        game._draw_image(self, x, y, width=width, height=height)
+
 
 class SpriteSheetRegion(Image):
     """A rectangular, top-left-origin region of a sprite-sheet image."""

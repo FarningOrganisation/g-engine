@@ -29,6 +29,11 @@ _GUI_ICONS = {
     "button": icons_fontawesome_6.ICON_FA_SQUARE,
     "toggle": icons_fontawesome_6.ICON_FA_TOGGLE_ON,
     "slider": icons_fontawesome_6.ICON_FA_SLIDERS,
+    "progress_bar": icons_fontawesome_6.ICON_FA_SLIDERS,
+    "image": icons_fontawesome_6.ICON_FA_WINDOW_MAXIMIZE,
+    "checkbox": icons_fontawesome_6.ICON_FA_TOGGLE_ON,
+    "dropdown": icons_fontawesome_6.ICON_FA_ARROWS_UP_DOWN,
+    "list_view": icons_fontawesome_6.ICON_FA_TABLE_CELLS,
     "text_input": icons_fontawesome_6.ICON_FA_KEYBOARD,
     "stack": icons_fontawesome_6.ICON_FA_LAYER_GROUP,
     "vbox": icons_fontawesome_6.ICON_FA_ARROWS_UP_DOWN,
@@ -228,6 +233,10 @@ class LayersPanel(EditorPanel):
             ("Button", "button"),
             ("Toggle", "toggle"),
             ("Slider", "slider"),
+            ("Progress Bar", "progress_bar"),
+            ("Image", "image"),
+            ("Checkbox", "checkbox"),
+            ("Dropdown", "dropdown"),
             ("Text Input", "text_input"),
         ):
             if imgui.menu_item(label, "", False)[0]:
@@ -243,6 +252,7 @@ class LayersPanel(EditorPanel):
             ("Grid Layout", "grid"),
             ("Anchor Layout", "anchor"),
             ("Scroll View", "scroll"),
+            ("List View", "list_view"),
         ):
             if imgui.menu_item(label, "", False)[0]:
                 try:
@@ -592,7 +602,12 @@ class LayersPanel(EditorPanel):
                     ("Button", "button"),
                     ("Toggle", "toggle"),
                     ("Slider", "slider"),
+                    ("Progress Bar", "progress_bar"),
+                    ("Image", "image"),
+                    ("Checkbox", "checkbox"),
+                    ("Dropdown", "dropdown"),
                     ("Text Input", "text_input"),
+                    ("List View", "list_view"),
                     ("Stack Layout", "stack"),
                     ("Vertical Layout", "vbox"),
                     ("Horizontal Layout", "hbox"),

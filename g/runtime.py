@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+from contextvars import ContextVar, Token
 import os
+from typing import Any
 
 
 _presentation_enabled = os.environ.get("G_HEADLESS_SERVER") != "1"
+_direct_draw_game: ContextVar[Any | None] = ContextVar(
+    "g_direct_draw_game",
+    default=None,
+)
 
 
 def presentation_enabled() -> bool:
@@ -13,6 +19,18 @@ def presentation_enabled() -> bool:
 def set_presentation_enabled(enabled: bool) -> None:
     global _presentation_enabled
     _presentation_enabled = bool(enabled)
+
+
+def begin_direct_draw(game: Any) -> Token[Any | None]:
+    return _direct_draw_game.set(game)
+
+
+def end_direct_draw(token: Token[Any | None]) -> None:
+    _direct_draw_game.reset(token)
+
+
+def current_direct_draw_game() -> Any | None:
+    return _direct_draw_game.get()
 
 
 class NullDrawable:

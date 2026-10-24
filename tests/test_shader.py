@@ -188,6 +188,7 @@ class PostProcessTests(unittest.TestCase):
         )
         game = SimpleNamespace(
             scenes=SimpleNamespace(current=scene),
+            _draw_direct=Mock(),
             _draw_transition=Mock(),
         )
         pyglet_window = Mock()
@@ -222,6 +223,7 @@ class PostProcessTests(unittest.TestCase):
         )
         game = SimpleNamespace(
             scenes=SimpleNamespace(current=scene),
+            _draw_direct=Mock(),
             _draw_transition=Mock(),
         )
         pyglet_window = Mock()

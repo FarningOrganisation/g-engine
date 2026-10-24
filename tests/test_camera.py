@@ -76,6 +76,9 @@ class CameraTests(unittest.TestCase):
         scene._draw_ui.side_effect = lambda: self.assertIs(
             native_window.view, original_view
         )
+        game._draw_direct.side_effect = lambda: self.assertIs(
+            native_window.view, original_view
+        )
         game.scenes.current = scene
         window._window = native_window
         window._game = game
@@ -86,6 +89,7 @@ class CameraTests(unittest.TestCase):
         scene._draw_background.assert_called_once_with()
         scene._draw.assert_called_once_with()
         scene._draw_ui.assert_called_once_with()
+        game._draw_direct.assert_called_once_with()
         game._draw_transition.assert_called_once_with()
         self.assertIs(native_window.view, original_view)
 

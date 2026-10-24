@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from math import cos, radians, sin
+from math import cos, hypot, isfinite, radians, sin
 from typing import TypeAlias
 
 
@@ -19,6 +19,71 @@ class BoxGeometry:
 
 
 CollisionGeometry: TypeAlias = CircleGeometry | BoxGeometry
+DashPattern: TypeAlias = tuple[float, float]
+
+
+def validate_dash_pattern(
+    pattern: DashPattern | None,
+) -> DashPattern | None:
+    """Return a normalized positive ``(dash, gap)`` pattern."""
+    if pattern is None:
+        return None
+    if (
+        len(pattern) != 2
+        or any(
+            not isinstance(length, (int, float))
+            or isinstance(length, bool)
+            or not isfinite(length)
+            or length <= 0
+            for length in pattern
+        )
+    ):
+        raise ValueError(
+            "dash_pattern must contain positive finite dash and gap lengths"
+        )
+    return float(pattern[0]), float(pattern[1])
+
+
+def dashed_line_segments(
+    start: tuple[float, float],
+    end: tuple[float, float],
+    pattern: DashPattern | None,
+) -> tuple[
+    tuple[tuple[float, float], tuple[float, float]],
+    ...,
+]:
+    """Split a line into its visible dash segments."""
+    pattern = validate_dash_pattern(pattern)
+    if pattern is None:
+        return ((start, end),) if start != end else ()
+    delta_x = end[0] - start[0]
+    delta_y = end[1] - start[1]
+    length = hypot(delta_x, delta_y)
+    if length == 0:
+        return ()
+    unit_x = delta_x / length
+    unit_y = delta_y / length
+    dash_length, gap_length = pattern
+    segments: list[
+        tuple[tuple[float, float], tuple[float, float]]
+    ] = []
+    distance = 0.0
+    while distance < length:
+        dash_end = min(distance + dash_length, length)
+        segments.append(
+            (
+                (
+                    start[0] + unit_x * distance,
+                    start[1] + unit_y * distance,
+                ),
+                (
+                    start[0] + unit_x * dash_end,
+                    start[1] + unit_y * dash_end,
+                ),
+            )
+        )
+        distance += dash_length + gap_length
+    return tuple(segments)
 
 
 def rotated_box(

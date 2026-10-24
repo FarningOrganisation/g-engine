@@ -53,6 +53,24 @@ class MacOSFrameDriverTests(unittest.TestCase):
         self.assertEqual(self.update.call_args, self.window.draw.call_args)
         self.window.set_vsync.assert_called_once_with(False)
 
+    def test_display_ticks_during_slow_frame_are_dropped(self) -> None:
+        self.driver.start()
+        self.driver._request_frame()
+
+        def draw(elapsed: float) -> None:
+            del elapsed
+            self.driver._request_frame()
+
+        self.window.draw.side_effect = draw
+        self.driver.on_display_frame()
+
+        self.post.assert_called_once_with(
+            self.driver,
+            "on_display_frame",
+        )
+        self.driver._request_frame()
+        self.assertEqual(self.post.call_count, 2)
+
     def test_display_and_resize_changes_reset_without_catch_up(self) -> None:
         self.driver.start()
         self.driver._previous = 100

@@ -7,9 +7,29 @@ from g import (
     Window,
     presentation_rect,
 )
+from g.window import _PresentationSurface
 
 
 class PresentationTests(unittest.TestCase):
+    def test_surface_presents_with_persistent_scaled_sprite(self) -> None:
+        surface = _PresentationSurface.__new__(_PresentationSurface)
+        surface.width = 800
+        surface.height = 600
+        surface._sprite = Mock(
+            position=(0, 0, 0),
+            scale_x=1,
+            scale_y=1,
+            z=0,
+        )
+        rect = presentation_rect(800, 600, 1600, 900, "fit")
+
+        surface.present(rect)
+
+        self.assertEqual(surface._sprite.position, (200, 0, 0))
+        self.assertEqual(surface._sprite.scale_x, 1.5)
+        self.assertEqual(surface._sprite.scale_y, 1.5)
+        surface._sprite.draw.assert_called_once_with()
+
     def test_fit_centers_complete_virtual_game(self) -> None:
         rect = presentation_rect(800, 600, 1600, 900, "fit")
 

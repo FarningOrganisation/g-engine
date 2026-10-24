@@ -23,6 +23,7 @@ Thumbs.db
 .idea/
 imgui.ini
 *.log
+/examples/breakout/breakout_highscores.json
 
 # Local credentials and environment configuration.
 .env
