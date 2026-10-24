@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from os import PathLike
 from pathlib import Path
-from typing import TypeAlias, TypeVar, cast
+from typing import TYPE_CHECKING, TypeAlias, TypeVar, cast
 
 import pyglet
 
@@ -39,6 +39,9 @@ from .runtime import (
 )
 from .scene import LayerSelector, Scene, SceneManager
 from .timing import SceneTime
+
+if TYPE_CHECKING:
+    from .window import Window
 
 
 KeyHandler: TypeAlias = Callable[[Key, Modifiers], None]
@@ -130,6 +133,7 @@ class Game:
         self.network = NetworkSession(self)
         self.project: ProjectConfig | None = None
         self._started = False
+        self._window: Window | None = None
         self._loading_bundle: ResourceBundle | None = None
         self._loading_progress_handler: LoadingProgressHandler | None = None
         self._loading_complete_handler: LoadingCompleteHandler | None = None
@@ -1327,6 +1331,14 @@ class Game:
         """
         pass
 
+    def quit(self) -> None:
+        """Stop the active game loop and close its window cleanly.
+
+        Calling this method when the game is not running has no effect.
+        """
+        if self._window is not None:
+            self._window.close()
+
     def run(
         self,
         title: str = "Game",
@@ -1374,7 +1386,11 @@ class Game:
             ),
         )
         window.show_game(self)
-        window.run(update, interval, draw=draw)
+        self._window = window
+        try:
+            window.run(update, interval, draw=draw)
+        finally:
+            self._window = None
 
     def run_server(
         self,

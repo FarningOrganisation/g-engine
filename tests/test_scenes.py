@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from g import FadeTransition, Game, Key, Scene, create_rect
 
@@ -145,6 +145,28 @@ class SceneTests(unittest.TestCase):
 
 
 class GameLifecycleTests(unittest.TestCase):
+    @patch("g.window.Window")
+    def test_quit_closes_active_window_and_run_clears_it(
+        self,
+        window_type: Mock,
+    ) -> None:
+        game = Game(320, 180)
+        window = window_type.return_value
+
+        def run(*args: object, **kwargs: object) -> None:
+            self.assertIs(game._window, window)
+            game.quit()
+
+        window.run.side_effect = run
+
+        game.run()
+
+        window.close.assert_called_once_with()
+        self.assertIsNone(game._window)
+
+    def test_quit_when_not_running_has_no_effect(self) -> None:
+        Game(320, 180).quit()
+
     def test_start_and_stop_hooks_run_once_per_cycle(self) -> None:
         events: list[str] = []
 

@@ -374,6 +374,10 @@ def show_stage_chooser() -> None:
         gui.replace("Stage Chooser", transition=g.UIFade(0.25))
 
 
+def quit() -> None:
+    breakout.quit()
+
+
 def play_selected_stage(stage_number: int) -> None:
     global single_stage_mode, lives
     if stage_number > int(progress["unlocked_stage"]):
@@ -393,6 +397,7 @@ main_menu = g.VBox(
     continue_button,
     g.Button("New Game", lambda: start_campaign(reset=True), width=260),
     g.Button("Choose Stage", show_stage_chooser, width=260),
+    g.Button("Quit", quit, width=260),
     spacing=14,
     padding=24,
 )
@@ -541,6 +546,8 @@ pause_menu = g.VBox(
     g.Button("Back to Menu", show_main_menu, width=260),
     spacing=16,
     padding=24,
+    width=312,
+    height=200,
 )
 gui.register(
     "Pause",
@@ -561,7 +568,7 @@ gui.register(
 pause_panel = gui.get("Pause").root.children[0]
 if not isinstance(pause_panel, g.Panel):
     raise RuntimeError("Breakout pause menu requires a panel")
-pause_panel.add_at(pause_menu, 50, 25)
+pause_panel.add_at(pause_menu, 24, 25)
 
 game_over_menu = g.VBox(
     g.Label(
@@ -1008,9 +1015,10 @@ def update(delta_time: float) -> None:
         else:
             update_playing(delta_time)
     elif state == PAUSED:
-        if gui.current.name != "Pause":
-            state = PLAYING
-        elif breakout.input.key_just_pressed(g.Key.P):
+        if (
+            breakout.input.key_just_pressed(g.Key.ESCAPE)
+            or breakout.input.key_just_pressed(g.Key.P)
+        ):
             resume_game()
     elif state == CLEARED and breakout.input.key_just_pressed(g.Key.SPACE):
         if single_stage_mode:

@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from g import (
     Game,
@@ -11,6 +11,17 @@ from g.window import _PresentationSurface
 
 
 class PresentationTests(unittest.TestCase):
+    @patch("g.window.pyglet.app.exit")
+    def test_window_close_requests_orderly_event_loop_exit(
+        self,
+        exit_app: Mock,
+    ) -> None:
+        window = Window.__new__(Window)
+
+        window.close()
+
+        exit_app.assert_called_once_with()
+
     def test_surface_presents_with_persistent_scaled_sprite(self) -> None:
         surface = _PresentationSurface.__new__(_PresentationSurface)
         surface.width = 800

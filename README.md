@@ -79,6 +79,10 @@ def update(delta_time: float) -> None:
 game.run(update=update, title="My First Game")
 ```
 
+Call `game.quit()` from a button or input callback to stop the game. The
+engine then releases its window, rendering, fullscreen, network, and
+direct-drawing resources before `run()` returns.
+
 For ad-hoc graphics such as a lives display, provide a draw callback. It runs
 once per rendered frame in virtual screen coordinates, after scene objects and
 UI:

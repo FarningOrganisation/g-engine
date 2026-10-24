@@ -532,5 +532,12 @@ class Window:
                             self._surface.delete()
                             self._surface = None
                         renderer = getattr(self, "_renderer", None)
-                        if renderer is not None:
-                            renderer.delete()
+                        try:
+                            if renderer is not None:
+                                renderer.delete()
+                        finally:
+                            self._window.close()
+
+    def close(self) -> None:
+        """Stop the event loop so engine resources can be cleaned up."""
+        pyglet.app.exit()
